@@ -1,0 +1,15 @@
+{
+  "name": "elmas-backend",
+  "version": "1.0.0",
+  "description": "Elmas Coin backend - hourly ad + claim mining",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "cors": "^2.8.5"
+  }
+}
