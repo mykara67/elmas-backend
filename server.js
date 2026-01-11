@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔐 SUPABASE
+// 🔐 SUPABASE BAĞLANTI
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
@@ -81,23 +81,16 @@ app.post("/mine", async (req, res) => {
     })
     .eq("user_id", userId);
 
-  res.json({ success: true, added: REWARD_PER_TICK });
+  res.json({
+    success: true,
+    added: REWARD_PER_TICK
+  });
 });
 
 // 💰 BALANCE
 app.get("/balance/:userId", async (req, res) => {
-  const { userId } = req.params;
+  const userId = req.params.userId;
 
   const { data } = await supabase
     .from("users")
     .select("balance")
-    .eq("user_id", userId)
-    .single();
-
-  res.json({ balance: data?.balance || 0 });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`✅ Backend çalışıyor (${PORT})`)
-);
