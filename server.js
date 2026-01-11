@@ -1,97 +1,103 @@
-import express from "express";
-import sqlite3 from "sqlite3";
-import cors from "cors";
+const express = require("express");
+const cors = require("cors");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 📦 SQLite DB
-const db = new sqlite3.Database("./db.sqlite");
-
-// 🗄️ TABLO
-db.run(`
-CREATE TABLE IF NOT EXISTS users (
-  user_id INTEGER PRIMARY KEY,
-  balance REAL DEFAULT 0,
-  mining_until INTEGER DEFAULT 0,
-  last_claim INTEGER DEFAULT 0,
-  last_mine INTEGER DEFAULT 0
-)
-`);
+// 🔐 SUPABASE
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 // ⏱ SABİTLER
 const HOUR = 60 * 60 * 1000;
-const MINE_INTERVAL = 5000; // 5 saniye
 const REWARD_PER_TICK = 0.0005;
 
-// 🧪 ANA TEST
-app.get("/", (req, res) => {
-  res.send("Elmas Backend çalışıyor");
-});
-
-// 📌 STATUS — mining aktif mi?
-app.get("/status/:userId", (req, res) => {
+// 📌 STATUS
+app.get("/status/:userId", async (req, res) => {
   const userId = req.params.userId;
   const now = Date.now();
 
-  db.get(
-    "SELECT * FROM users WHERE user_id = ?",
-    [userId],
-    (err, user) => {
-      if (!user || user.mining_until < now) {
-        return res.json({
-          canMine: false,
-          needAd: true,
-          remaining: 0
-        });
-      }
+  const { data: user } = await supabase
+    .from("users")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
 
-      return res.json({
-        canMine: true,
-        needAd: false,
-        remaining: user.mining_until - now
-      });
-    }
-  );
+  if (!user || user.mining_until < now) {
+    return res.json({
+      canMine: false,
+      needAd: true,
+      remaining: 0
+    });
+  }
+
+  res.json({
+    canMine: true,
+    needAd: false,
+    remaining: user.mining_until - now
+  });
 });
 
-// 🎯 CLAIM — SAATTE 1 (reklamdan sonra)
-app.post("/claim", (req, res) => {
+// 🎯 CLAIM
+app.post("/claim", async (req, res) => {
+  const { userId } = req.body;
+  const now = Date.now();
+  const miningUntil = now + HOUR;
+
+  await supabase.from("users").upsert({
+    user_id: userId,
+    mining_until: miningUntil,
+    last_claim: now
+  });
+
+  res.json({ success: true, miningUntil });
+});
+
+// ⛏ MINE
+app.post("/mine", async (req, res) => {
   const { userId } = req.body;
   const now = Date.now();
 
-  db.get(
-    "SELECT last_claim FROM users WHERE user_id = ?",
-    [userId],
-    (err, user) => {
-      if (user && now - user.last_claim < HOUR) {
-        return res.status(403).json({
-          error: "Claim zamanı gelmedi",
-          remaining: HOUR - (now - user.last_claim)
-        });
-      }
+  const { data: user } = await supabase
+    .from("users")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
 
-      const miningUntil = now + HOUR;
+  if (!user || user.mining_until < now) {
+    return res.status(403).json({
+      error: "Süre doldu, claim gerekli"
+    });
+  }
 
-      db.run(
-        `INSERT INTO users (user_id, mining_until, last_claim)
-         VALUES (?, ?, ?)
-         ON CONFLICT(user_id) DO UPDATE SET
-         mining_until = ?,
-         last_claim = ?`,
-        [userId, miningUntil, now, miningUntil, now],
-        () => {
-          res.json({
-            success: true,
-            miningUntil
-          });
-        }
-      );
-    }
-  );
+  await supabase
+    .from("users")
+    .update({
+      balance: user.balance + REWARD_PER_TICK
+    })
+    .eq("user_id", userId);
+
+  res.json({ success: true, added: REWARD_PER_TICK });
 });
 
-// ⛏️ MINE — süre + anti-spam korumalı
-app.post("/mine", (req, res) => {
-  const { userId } = re
+// 💰 BALANCE
+app.get("/balance/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  const { data } = await supabase
+    .from("users")
+    .select("balance")
+    .eq("user_id", userId)
+    .single();
+
+  res.json({ balance: data?.balance || 0 });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () =>
+  console.log(`✅ Backend çalışıyor (${PORT})`)
+);
