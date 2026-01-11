@@ -6,22 +6,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 📦 SQLite DB
 const db = new sqlite3.Database("./db.sqlite");
 
+// 🗄️ TABLO
 db.run(`
 CREATE TABLE IF NOT EXISTS users (
   user_id INTEGER PRIMARY KEY,
   balance REAL DEFAULT 0,
   mining_until INTEGER DEFAULT 0,
-  last_claim INTEGER DEFAULT 0
+  last_claim INTEGER DEFAULT 0,
+  last_mine INTEGER DEFAULT 0
 )
 `);
 
 // ⏱ SABİTLER
 const HOUR = 60 * 60 * 1000;
-const REWARD_PER_TICK = 0.0005; // her mine çağrısı
+const MINE_INTERVAL = 5000; // 5 saniye
+const REWARD_PER_TICK = 0.0005;
 
-// 📌 STATUS — mining var mı? reklam gerekli mi?
+// 🧪 ANA TEST
+app.get("/", (req, res) => {
+  res.send("Elmas Backend çalışıyor");
+});
+
+// 📌 STATUS — mining aktif mi?
 app.get("/status/:userId", (req, res) => {
   const userId = req.params.userId;
   const now = Date.now();
@@ -47,55 +56,35 @@ app.get("/status/:userId", (req, res) => {
   );
 });
 
-// 🎯 CLAIM — reklam izlendikten sonra ÇAĞRILIR
+// 🎯 CLAIM — SAATTE 1 (reklamdan sonra)
 app.post("/claim", (req, res) => {
   const { userId } = req.body;
   const now = Date.now();
 
-  const miningUntil = now + HOUR;
-
-  db.run(
-    `INSERT INTO users (user_id, mining_until, last_claim)
-     VALUES (?, ?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET
-     mining_until = ?,
-     last_claim = ?`,
-    [userId, miningUntil, now, miningUntil, now],
-    () => {
-      res.json({
-        success: true,
-        miningUntil
-      });
-    }
-  );
-});
-
-// ⛏ MINE — SADECE CLAIM + SÜRE VARSA ÇALIŞIR
-app.post("/mine", (req, res) => {
-  const { userId } = req.body;
-  const now = Date.now();
-
   db.get(
-    "SELECT * FROM users WHERE user_id = ?",
+    "SELECT last_claim FROM users WHERE user_id = ?",
     [userId],
     (err, user) => {
-      if (!user) {
-        return res.status(403).json({ error: "User yok" });
-      }
-
-      if (user.mining_until < now) {
+      if (user && now - user.last_claim < HOUR) {
         return res.status(403).json({
-          error: "Süre doldu, reklam + claim gerekli"
+          error: "Claim zamanı gelmedi",
+          remaining: HOUR - (now - user.last_claim)
         });
       }
 
+      const miningUntil = now + HOUR;
+
       db.run(
-        "UPDATE users SET balance = balance + ? WHERE user_id = ?",
-        [REWARD_PER_TICK, userId],
+        `INSERT INTO users (user_id, mining_until, last_claim)
+         VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+         mining_until = ?,
+         last_claim = ?`,
+        [userId, miningUntil, now, miningUntil, now],
         () => {
           res.json({
             success: true,
-            added: REWARD_PER_TICK
+            miningUntil
           });
         }
       );
@@ -103,19 +92,6 @@ app.post("/mine", (req, res) => {
   );
 });
 
-// 💰 BALANCE — bakiye sorgu
-app.get("/balance/:userId", (req, res) => {
-  const userId = req.params.userId;
-
-  db.get(
-    "SELECT balance FROM users WHERE user_id = ?",
-    [userId],
-    (err, row) => {
-      res.json({ balance: row ? row.balance : 0 });
-    }
-  );
-});
-
-app.listen(3000, () => {
-  console.log("✅ Backend çalışıyor (3000)");
-});
+// ⛏️ MINE — süre + anti-spam korumalı
+app.post("/mine", (req, res) => {
+  const { userId } = re
