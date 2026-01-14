@@ -4,7 +4,7 @@ const sqlite3 = require('sqlite3').verbose()
 
 // ================= ENV =================
 const BOT_TOKEN = process.env.BOT_TOKEN
-const ADMIN_ID = Number(process.env.ADMIN_ID || 0) // reserved for future admin features
+const ADMIN_ID = Number(process.env.ADMIN_ID || 0) // şimdilik opsiyonel
 const DB_PATH = process.env.DB_PATH || './bot.db'
 
 if (!BOT_TOKEN) {
@@ -34,11 +34,36 @@ const get = (q, p = []) =>
     })
   )
 
+const all = (q, p = []) =>
+  new Promise((res, rej) =>
+    db.all(q, p, (e, rows) => {
+      if (e) rej(e)
+      else res(rows)
+    })
+  )
+
 // ================= FORMAT =================
 const fmt4 = (n) => Number(n || 0).toFixed(4)
 
-// ================= INIT DB =================
-async function initDb() {
+// ================= MIGRATION HELPERS =================
+async function tableInfo(table) {
+  return all(`PRAGMA table_info(${table})`)
+}
+async function hasColumn(table, col) {
+  const cols = await tableInfo(table)
+  return cols.some((c) => c.name === col)
+}
+async function addColumnIfMissing(table, col, defSql) {
+  const ok = await hasColumn(table, col)
+  if (ok) return false
+  await run(`ALTER TABLE ${table} ADD COLUMN ${col} ${defSql}`)
+  console.log(`✅ Column eklendi: ${table}.${col}`)
+  return true
+}
+
+// ================= DB MIGRATION =================
+async function migrateDb() {
+  // --- users (mevcut yapıyı bozmadan) ---
   await run(`
     CREATE TABLE IF NOT EXISTS users (
       user_id INTEGER PRIMARY KEY,
@@ -48,7 +73,46 @@ async function initDb() {
       last_reset TEXT
     )
   `)
-  console.log('✅ DB hazır (ADIM 20 - UX Sayaç + Admin)')
+
+  // Sonraki adımlar için şimdiden kolonlar (güvenli)
+  await addColumnIfMissing('users', 'pending_action', 'TEXT')
+  await addColumnIfMissing('users', 'pending_data', 'TEXT')
+  await addColumnIfMissing('users', 'iban', 'TEXT')
+  await addColumnIfMissing('users', 'vip', 'INTEGER DEFAULT 0')
+  await addColumnIfMissing('users', 'vip_until', 'TEXT')
+  await addColumnIfMissing('users', 'ref_code', 'TEXT')
+  await addColumnIfMissing('users', 'referred_by', 'INTEGER')
+  await addColumnIfMissing('users', 'referrals_count', 'INTEGER DEFAULT 0')
+  await addColumnIfMissing('users', 'last_reset_day', 'TEXT') // günlük sıfırlama için alternatif
+
+  // --- ads (reklam sistemi için) ---
+  await run(`
+    CREATE TABLE IF NOT EXISTS ads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT,
+      url TEXT,
+      reward REAL DEFAULT 0,
+      seconds INTEGER DEFAULT 15,
+      is_active INTEGER DEFAULT 1,
+      is_vip INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `)
+
+  // --- withdraw_requests (para çekim için) ---
+  await run(`
+    CREATE TABLE IF NOT EXISTS withdraw_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      telegram_id INTEGER,
+      iban TEXT,
+      amount REAL,
+      status TEXT DEFAULT 'pending',
+      note TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `)
+
+  console.log('✅ DB migration tamam (ADIM 20 taban hazır)')
 }
 
 // ================= MENU =================
@@ -124,11 +188,11 @@ if (!global.__WEBAPP_STARTED__) {
 }
 
 // ================= START APP =================
-initDb().then(async () => {
+migrateDb().then(async () => {
   const me = await bot.telegram.getMe()
   console.log('✅ Bot username:', me.username)
   await bot.launch()
-  console.log('🚀 Bot çalışıyor (ADIM 20)')
+  console.log('🚀 Bot çalışıyor (ADIM 20 + MIGRATION)')
 })
 
 process.once('SIGINT', () => bot.stop('SIGINT'))

@@ -2,11 +2,10 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0f19" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>ELMAS Wallet</title>
 
-  <!-- Telegram WebApp SDK (must be available before app.js runs) -->
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <!-- Genesis-like dark theme -->
@@ -14,30 +13,30 @@
 </head>
 
 <body>
-  <div class="bg" aria-hidden="true"></div>
+  <div class="bg"></div>
 
   <div class="wrap">
     <header class="topbar">
-      <div class="brand" role="banner">
-        <div class="logo" aria-hidden="true">⟠</div>
+      <div class="brand">
+        <div class="logo">⟠</div>
         <div>
           <div class="title">ELMAS Wallet</div>
           <div class="sub" id="subTitle">Genesis görünüm</div>
         </div>
       </div>
 
-      <div class="pill" id="pillStatus" aria-live="polite">Bağlanıyor…</div>
+      <div class="pill" id="pillStatus">Bağlanıyor…</div>
     </header>
 
-    <main class="grid" role="main">
+    <main class="grid">
       <!-- Balances -->
-      <section class="card" aria-label="Bakiye kartı">
+      <section class="card">
         <div class="cardHead">
           <div>
             <div class="label">Bakiye</div>
             <div class="h1" id="userName">—</div>
           </div>
-          <button class="btn ghost" id="btnRefresh" type="button">Yenile</button>
+          <button class="btn ghost" id="btnRefresh">Yenile</button>
         </div>
 
         <div class="stats">
@@ -55,7 +54,7 @@
       </section>
 
       <!-- Packages -->
-      <section class="card" aria-label="Paketler">
+      <section class="card">
         <div class="cardHead">
           <div>
             <div class="label">Paketler</div>
@@ -63,13 +62,13 @@
           </div>
         </div>
 
-        <div id="packages" class="list" aria-live="polite">
+        <div id="packages" class="list">
           <div class="skeleton">Yükleniyor…</div>
         </div>
       </section>
 
       <!-- My ads -->
-      <section class="card" aria-label="Kendi reklamlarım">
+      <section class="card">
         <div class="cardHead">
           <div>
             <div class="label">Kendi Reklamlarım</div>
@@ -77,13 +76,13 @@
           </div>
         </div>
 
-        <div id="myAds" class="list" aria-live="polite">
+        <div id="myAds" class="list">
           <div class="skeleton">Yükleniyor…</div>
         </div>
       </section>
 
       <!-- Create -->
-      <section class="card" aria-label="Reklam oluştur">
+      <section class="card">
         <div class="cardHead">
           <div>
             <div class="label">Reklam Oluştur</div>
@@ -91,38 +90,38 @@
           </div>
         </div>
 
-        <form class="form" id="createForm" autocomplete="off">
+        <div class="form">
           <div class="row">
-            <label class="lbl" for="selPkg">Paket</label>
-            <select id="selPkg" class="input" name="package"></select>
+            <label class="lbl">Paket</label>
+            <select id="selPkg" class="input"></select>
           </div>
 
           <div class="row">
-            <label class="lbl" for="selType">Tip</label>
-            <select id="selType" class="input" name="type">
+            <label class="lbl">Tip</label>
+            <select id="selType" class="input">
               <option value="LINK">LINK</option>
               <option value="PHOTO">PHOTO (URL)</option>
             </select>
           </div>
 
           <div class="row">
-            <label class="lbl" for="inpTitle">Başlık</label>
-            <input id="inpTitle" class="input" name="title" maxlength="80" placeholder="Örn: Yeni ürün lansmanı" />
+            <label class="lbl">Başlık</label>
+            <input id="inpTitle" class="input" maxlength="80" placeholder="Örn: Yeni ürün lansmanı" />
           </div>
 
           <div class="row" id="rowLink">
-            <label class="lbl" for="inpLink">Link URL</label>
-            <input id="inpLink" class="input" name="link" placeholder="https://..." inputmode="url" />
+            <label class="lbl">Link URL</label>
+            <input id="inpLink" class="input" placeholder="https://..." />
           </div>
 
           <div class="row" id="rowPhoto" style="display:none">
-            <label class="lbl" for="inpPhoto">Foto URL</label>
-            <input id="inpPhoto" class="input" name="photo" placeholder="https://...jpg" inputmode="url" />
+            <label class="lbl">Foto URL</label>
+            <input id="inpPhoto" class="input" placeholder="https://...jpg" />
           </div>
 
-          <button id="btnCreate" class="btn primary" type="submit">Reklamı Oluştur (ELMAS ile öde)</button>
-          <div id="status" class="tiny" role="status" aria-live="polite"></div>
-        </form>
+          <button id="btnCreate" class="btn primary">Reklamı Oluştur (ELMAS ile öde)</button>
+          <div id="status" class="tiny"></div>
+        </div>
       </section>
     </main>
 
@@ -131,15 +130,6 @@
     </footer>
   </div>
 
-  <!-- App JS -->
   <script src="/webapp/app.js?v=3" defer></script>
-
-  <!-- Small guard: prevent form reload if app.js forgets -->
-  <script>
-    (function(){
-      const f = document.getElementById('createForm');
-      if (f) f.addEventListener('submit', (e) => e.preventDefault());
-    })();
-  </script>
 </body>
 </html>
