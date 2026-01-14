@@ -47,6 +47,116 @@ app.use('/webapp', express.static(path.join(__dirname, 'webapp')))
 
 // ================= DB =================
 const db = new sqlite3.Database(DB_PATH)
+// ================== DB INIT (FINAL) ==================
+function run(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err)
+      else resolve(this)
+    })
+  })
+}
+
+function get(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err)
+      else resolve(row)
+    })
+  })
+}
+
+async function initDB() {
+  // USERS
+  await run(`
+    CREATE TABLE IF NOT EXISTS users (
+      user_id INTEGER PRIMARY KEY,
+      username TEXT,
+      token REAL DEFAULT 0,
+      balance_tl REAL DEFAULT 0,
+      daily_ad_count INTEGER DEFAULT 0,
+      last_reset_day TEXT,
+      referrer_id INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  // ADS (ADMIN + USER ADS)
+  await run(`
+    CREATE TABLE IF NOT EXISTS ads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_id INTEGER,
+      type TEXT,
+      title TEXT,
+      url TEXT,
+      image TEXT,
+      reward REAL DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  // PACKAGES (WEBAPP – REKLAM PAKETLERİ)
+  await run(`
+    CREATE TABLE IF NOT EXISTS packages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      price_token REAL,
+      ad_limit INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  // USER ADS (KULLANICI OLUŞTURDUĞU REKLAMLAR)
+  await run(`
+    CREATE TABLE IF NOT EXISTS user_ads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      ad_id INTEGER,
+      views INTEGER DEFAULT 0,
+      max_views INTEGER,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  // LOGS
+  await run(`
+    CREATE TABLE IF NOT EXISTS logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      action TEXT,
+      amount REAL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  // INDEXLER (PERFORMANS)
+  await run(`CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id)`)
+  await run(`CREATE INDEX IF NOT EXISTS idx_ads_active ON ads(is_active)`)
+  await run(`CREATE INDEX IF NOT EXISTS idx_user_ads_user ON user_ads(user_id)`)
+
+  // DEFAULT PACKAGES (SADECE 1 KEZ EKLENİR)
+  const pkg = await get(`SELECT id FROM packages LIMIT 1`)
+  if (!pkg) {
+    await run(
+      `INSERT INTO packages (name, price_token, ad_limit) VALUES
+      ('Mini Paket', 10, 100),
+      ('Standart Paket', 25, 300),
+      ('Pro Paket', 50, 1000)`
+    )
+    console.log('✅ packages seeded')
+  }
+
+  console.log('✅ WebApp tables ready')
+}
+
+// ÇALIŞTIR
+initDB().catch(e => {
+  console.error('❌ DB INIT ERROR:', e)
+  process.exit(1)
+})
+// ================== DB INIT (FINAL) ==================
 
 function run(sql, params = []) {
   return new Promise((resolve, reject) => {
