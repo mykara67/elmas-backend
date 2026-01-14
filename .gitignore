@@ -1,5 +1,31 @@
+# Dependencies
 node_modules/
-db.sqlite
+
+# Environment
 .env
-bot.db
+
+# SQLite / local data
 *.db
+bot.db
+db.sqlite
+db.sqlite3
+*.sqlite
+*.sqlite3
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Accidental/duplicate files (cleanup)
+Yeni Metin Belgesi.txt
+Yeni klasör/
+webapp/index.html1
