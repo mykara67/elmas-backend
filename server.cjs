@@ -1,3 +1,18 @@
+const sqlite3 = require("sqlite3").verbose()
+const db = new sqlite3.Database("./db.sqlite")
+
+db.run(`
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY,
+  username TEXT,
+  elmas REAL DEFAULT 0,
+  bakiye REAL DEFAULT 0,
+  gunluk_reklam INTEGER DEFAULT 10,
+  vip INTEGER DEFAULT 0,
+  referans INTEGER DEFAULT 0
+)
+`)
+
 const express = require("express");
 const sqlite3 = require("sqlite3");
 const cors = require("cors");
