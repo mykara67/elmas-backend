@@ -59,8 +59,8 @@ function safeJsonParse(s) {
 async function upsertUser(tgId) {
   const { data: existing, error: e1 } = await supabase
     .from('users')
-    .select('tg_id,balance,pending_action,pending_data')
-    .eq('tg_id', tgId)
+    .select('telegram_id,balance_tl,pending_action,pending_data')
+    .eq('telegram_id', tgId)
     .maybeSingle();
 
   if (e1) throw e1;
@@ -68,8 +68,8 @@ async function upsertUser(tgId) {
 
   const { data: created, error: e2 } = await supabase
     .from('users')
-    .insert([{ tg_id: tgId, balance: 0, pending_action: null, pending_data: null }])
-    .select('tg_id,balance,pending_action,pending_data')
+    .insert([{ telegram_id: tgId, balance_tl: 0, pending_action: null, pending_data: null }])
+    .select('telegram_id,balance_tl,pending_action,pending_data')
     .single();
 
   if (e2) throw e2;
@@ -81,9 +81,9 @@ async function setPending(tgId, action, dataObj) {
     .from('users')
     .update({
       pending_action: action,
-      pending_data: dataObj ? JSON.stringify(dataObj) : null,
+      pending_data: dataObj ? dataObj : null,
     })
-    .eq('tg_id', tgId);
+    .eq('telegram_id', tgId);
 
   if (error) throw error;
 }
@@ -91,18 +91,18 @@ async function setPending(tgId, action, dataObj) {
 async function addBalance(tgId, amount) {
   const { data: u, error: e1 } = await supabase
     .from('users')
-    .select('balance')
-    .eq('tg_id', tgId)
+    .select('balance_tl')
+    .eq('telegram_id', tgId)
     .single();
 
   if (e1) throw e1;
 
-  const newBal = Number(u.balance || 0) + Number(amount || 0);
+  const newBal = Number(u.balance_tl_tl || 0) + Number(amount || 0);
 
   const { error: e2 } = await supabase
     .from('users')
-    .update({ balance: newBal })
-    .eq('tg_id', tgId);
+    .update({ balance_tl: newBal })
+    .eq('telegram_id', tgId);
 
   if (e2) throw e2;
 
@@ -156,7 +156,7 @@ async function pickActiveAd() {
     try {
       const tgId = String(ctx.from.id);
       const u = await upsertUser(tgId);
-      await ctx.reply(`💰 Bakiye: ${Number(u.balance || 0).toFixed(2)}`);
+      await ctx.reply(`💰 Bakiye: ${Number(u.balance_tl_tl || 0).toFixed(2)}`);
     } catch (err) {
       console.error(err);
       await ctx.reply('❌ Bakiye okunamadı.');
@@ -235,7 +235,7 @@ async function pickActiveAd() {
         return ctx.reply('⚠️ Bu işlem geçersiz. Menüden tekrar reklam başlat.', mainMenu());
       }
 
-      const pd = safeJsonParse(u.pending_data);
+      const pd = u.pending_data || null;
       if (!pd || Number(pd.ad_id) !== adId) {
         return ctx.reply('⚠️ Reklam oturumu uyuşmuyor. Menüden tekrar dene.', mainMenu());
       }
