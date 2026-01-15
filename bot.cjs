@@ -10,9 +10,16 @@ const ADMIN_ID = Number(process.env.ADMIN_ID || 0)
 // Supabase (server-side)
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY // prefer SERVICE_ROLE
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_KEY ||
+  process.env.SUPABASE_ANON_KEY // prefer SERVICE_ROLE
 
-if (!BOT_TOKEN) {
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.log('❌ SUPABASE_URL veya SUPABASE_SERVICE_ROLE_KEY / SUPABASE_KEY yok')
+  process.exit(1)
+}
+
+T_TOKEN) {
   console.log('❌ BOT_TOKEN yok')
   process.exit(1)
 }
