@@ -5,6 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 
 dotenv.config();
 
+const WEB_BASE_URL = process.env.WEB_BASE_URL || 'https://elmas-web.onrender.com';
+
 /**
  * =========================
  * ENV CHECK
@@ -237,132 +239,41 @@ async function pickActiveAd() {
 
       const seconds = Math.max(10, Number(ad.seconds || 10));
       const reward = Math.max(0, Number(ad.reward || 0));
-      const nonce = Math.random().toString(36).slice(2, 8);
 
-      await setPending(tgId, 'watch_ad', {
-        ad_id: ad.id,
-        nonce,
-        seconds,
-        reward,
-        started: false,
-        started_at: null,
-      });
+      // Create a single-use watch session in Supabase
+      const { data: session, error: sErr } = await supabase
+        .from('ad_watch_sessions')
+        .insert({ tg_id: tgId, ad_id: ad.id, required_seconds: seconds })
+        .select('id')
+        .single();
 
-      const adText =
-        `🎬 *${ad.title || 'Reklam'}*\n\n` +
-        `${ad.text || ''}\n\n` +
-        (ad.url ? `🔗 Link: ${ad.url}\n\n` : '') +
-        `⏱ Süre: *${seconds} sn*\n` +
-        `💸 Ödül: *${reward}*`;
+      if (sErr || !session) {
+        console.error('❌ ad_watch_sessions insert error:', sErr);
+        return ctx.reply('❌ Oturum oluşturulamadı. Supabase ad_watch_sessions tablosunu kontrol et.', mainMenu());
+      }
+
+      const url = `${WEB_BASE_URL.replace(/\/$/, '')}/ad/${session.id}`;
+
+      const msg =
+`🎥 *Reklam: ${ad.title || ('#' + ad.id)}*
+⏱ Süre: *${seconds} sn*
+🏁 Ödül: *${reward.toFixed(2)} TL + ${reward.toFixed(2)} ELMAS*
+
+👉 Videoyu aç ve sayaç bitene kadar sayfayı kapatma.
+✅ Sayaç bitince ödül *otomatik* hesabına yatar.`;
 
       const kb = Markup.inlineKeyboard([
-      ...(ad.url ? [[Markup.button.url('🔗 Reklamı Aç', ad.url)]] : []),
-      [Markup.button.callback('✅ Reklamı Açtım', `ad_opened:${ad.id}:${nonce}`)],
-      [Markup.button.callback('⬅️ Menü', 'back_menu')],
-    ]);
-
-      await ctx.reply(adText, { parse_mode: 'Markdown', ...kb });
-    } catch (err) {
-      console.error(err);
-      try { await ctx.answerCbQuery('Hata oluştu'); } catch {}
-      await ctx.reply('❌ Reklam getirilemedi. Supabase ads tablosunu kontrol et.', mainMenu());
-    }
-  });
-
-  // 2) "▶️ Başlat" -> Sayaç -> Ödeme
-  
-  // 2) "✅ Reklamı Açtım" -> Kullanıcı linke tıkladığını onaylar, sonra sayaç butonu gösterilir
-  bot.action(/^ad_opened:(\d+):([a-z0-9]{0,10})$/, async (ctx) => {
-    const adId = Number(ctx.match[1]);
-    const nonce = String(ctx.match[2] || '');
-
-    try {
-      await ctx.answerCbQuery();
-
-      const tgId = String(ctx.from.id);
-      const u = await upsertUser(tgId);
-
-      if (u.pending_action !== 'watch_ad') {
-        return ctx.reply('⚠️ Önce Menüden reklam başlat.', mainMenu());
-      }
-
-      const pd = u.pending_data || null;
-      if (!pd || Number(pd.ad_id) !== adId) {
-        return ctx.reply('⚠️ Reklam oturumu uyuşmuyor. Menüden tekrar dene.', mainMenu());
-      }
-      if (pd.nonce && nonce && String(pd.nonce) !== nonce) {
-        return ctx.reply('⚠️ Bu reklam oturumu geçersiz. Menüden yeniden başlat.', mainMenu());
-      }
-      if (pd.nonce && nonce && String(pd.nonce) !== nonce) {
-        return ctx.reply('⚠️ Bu reklam oturumu geçersiz. Menüden tekrar dene.', mainMenu());
-      }
-
-      const seconds = Math.max(10, Number(pd.seconds || 10));
-      const reward = Number(pd.reward || 0);
-
-      await setPending(tgId, 'watch_ad', {
-        ...pd,
-        open_confirmed: true,
-        open_confirmed_at: Date.now(),
-        started: false,
-        started_at: null,
-      });
-
-      const text =
-        `✅ Reklamı açtığını onayladın.\n\n` +
-        `⏱ Süre: *${seconds} sn*\n` +
-        `💸 Ödül: *${reward}*\n\n` +
-        `Şimdi sayaç başlatabilirsin.`;
-
-      const kb = Markup.inlineKeyboard([
-        [Markup.button.callback('▶️ Başlat (Sayaç)', `ad_start:${adId}:${pd.nonce || ''}`)],
+        [Markup.button.url('🔗 Videoyu Aç', url)],
         [Markup.button.callback('⬅️ Menü', 'back_menu')],
       ]);
 
-      try {
-        await ctx.editMessageText(text, { parse_mode: 'Markdown', ...kb });
-      } catch {
-        await ctx.reply(text, { parse_mode: 'Markdown', ...kb });
-      }
+      return ctx.reply(msg, { parse_mode: 'Markdown', ...kb });
     } catch (err) {
       console.error(err);
-      try { await ctx.answerCbQuery('Hata'); } catch {}
-      await ctx.reply('❌ İşlem sırasında hata oluştu.', mainMenu());
+      try { await ctx.answerCbQuery('Hata oluştu'); } catch {}
+      return ctx.reply('❌ Reklam getirilemedi. Supabase tablolarını kontrol et.', mainMenu());
     }
   });
-
-bot.action(/^ad_start:(\d+):([a-z0-9]{0,10})$/, async (ctx) => {
-    const adId = Number(ctx.match[1]);
-
-    const nonce = String(ctx.match[2] || '');
-
-    try {
-      await ctx.answerCbQuery();
-
-      const tgId = String(ctx.from.id);
-      const u = await upsertUser(tgId);
-
-      if (u.pending_action !== 'watch_ad') {
-        return ctx.reply('⚠️ Bu işlem geçersiz. Menüden tekrar reklam başlat.', mainMenu());
-      }
-
-      const pd = u.pending_data || null;
-      if (!pd || Number(pd.ad_id) !== adId) {
-        return ctx.reply('⚠️ Reklam oturumu uyuşmuyor. Menüden tekrar dene.', mainMenu());
-      }
-
-      if (pd.started) {
-        return ctx.reply('⏳ Sayaç zaten başlamış. Bitmesini bekle.', mainMenu());
-      }
-
-      const seconds = Math.max(10, Number(pd.seconds || 10));
-      const reward = Number(pd.reward || 0);
-
-      await setPending(tgId, 'watch_ad', {
-        ...pd,
-        started: true,
-        started_at: Date.now(),
-      });
 
       // Sayaç mesajını ayrı bir mesajda yönetelim (edit hatalarını azaltır)
       const baseText =
@@ -436,4 +347,3 @@ const PORT = process.env.PORT || 10000;
 
 app.get('/health', (req, res) => res.send('OK'));
 app.listen(PORT, () => console.log(`🌐 Health server running on ${PORT}`));
-// redeploy
