@@ -152,6 +152,52 @@ async function pickActiveAd() {
     await ctx.reply('Menü:', mainMenu());
   });
 
+  // DEBUG: Reply-keyboard / yazıdan gelen metni logla (menü butonları metin gönderir)
+  bot.on('text', (ctx, next) => {
+    try {
+      console.log('TEXT_IN:', JSON.stringify(ctx.message.text));
+    } catch {}
+    return next();
+  });
+
+  // MENÜ: Reply keyboard / yazı ile gelen seçenekleri yakala (emoji farklarına dayanıklı)
+  bot.hears(/cüzdan/i, async (ctx) => {
+    try {
+      const tgId = String(ctx.from.id);
+      const u = await upsertUser(tgId);
+      const bal = Number(u.balance_tl || 0);
+      return ctx.reply(`💼 Cüzdan\n\n💰 Bakiye: ${bal.toFixed(2)} TL`, mainMenu());
+    } catch (err) {
+      console.error(err);
+      return ctx.reply('❌ Cüzdan alınamadı.', mainMenu());
+    }
+  });
+
+  bot.hears(/market/i, async (ctx) => {
+    return ctx.reply('🛒 Market yakında aktif olacak.', mainMenu());
+  });
+
+  bot.hears(/referans/i, async (ctx) => {
+    try {
+      const tgId = String(ctx.from.id);
+      const u = await upsertUser(tgId);
+      const code = u.ref_code || 'Yok';
+      return ctx.reply(`👥 Referans\n\n🔗 Kodun: ${code}`, mainMenu());
+    } catch (err) {
+      console.error(err);
+      return ctx.reply('❌ Referans bilgisi alınamadı.', mainMenu());
+    }
+  });
+
+  bot.hears(/para\s*çek/i, async (ctx) => {
+    return ctx.reply('💸 Para Çek\n\nIBAN ve tutar akışını birazdan bağlayacağız.', mainMenu());
+  });
+
+  bot.hears(/vip/i, async (ctx) => {
+    return ctx.reply('🔥 VIP\n\nVIP sistemi yakında aktif olacak.', mainMenu());
+  });
+
+
   bot.command('balance', async (ctx) => {
     try {
       const tgId = String(ctx.from.id);
@@ -208,10 +254,10 @@ async function pickActiveAd() {
         `💸 Ödül: *${reward}*`;
 
       const kb = Markup.inlineKeyboard([
-        ...(ad.url ? [[Markup.button.url('🔗 Reklamı Aç', ad.url)]] : []),
-        [Markup.button.callback('▶️ Başlat (Sayaç)', `ad_start:${ad.id}`)],
-        [Markup.button.callback('⬅️ Menü', 'back_menu')],
-      ]);
+      ...(ad.url ? [[Markup.button.url('🔗 Reklamı Aç', ad.url)]] : []),
+      [Markup.button.callback('✅ Reklamı Açtım', `ad_opened:${ad.id}`)],
+      [Markup.button.callback('⬅️ Menü', 'back_menu')],
+    ]);
 
       await ctx.reply(adText, { parse_mode: 'Markdown', ...kb });
     } catch (err) {
@@ -222,7 +268,61 @@ async function pickActiveAd() {
   });
 
   // 2) "▶️ Başlat" -> Sayaç -> Ödeme
-  bot.action(/^ad_start:(\d+)$/, async (ctx) => {
+  
+  // 2) "✅ Reklamı Açtım" -> Kullanıcı linke tıkladığını onaylar, sonra sayaç butonu gösterilir
+  bot.action(/^ad_opened:(\d+)$/, async (ctx) => {
+    const adId = Number(ctx.match[1]);
+
+    try {
+      await ctx.answerCbQuery();
+
+      const tgId = String(ctx.from.id);
+      const u = await upsertUser(tgId);
+
+      if (u.pending_action !== 'watch_ad') {
+        return ctx.reply('⚠️ Önce Menüden reklam başlat.', mainMenu());
+      }
+
+      const pd = u.pending_data || null;
+      if (!pd || Number(pd.ad_id) !== adId) {
+        return ctx.reply('⚠️ Reklam oturumu uyuşmuyor. Menüden tekrar dene.', mainMenu());
+      }
+
+      const seconds = Number(pd.seconds || 10);
+      const reward = Number(pd.reward || 0);
+
+      await setPending(tgId, 'watch_ad', {
+        ...pd,
+        open_confirmed: true,
+        open_confirmed_at: Date.now(),
+        started: false,
+        started_at: null,
+      });
+
+      const text =
+        `✅ Reklamı açtığını onayladın.\n\n` +
+        `⏱ Süre: *${seconds} sn*\n` +
+        `💸 Ödül: *${reward}*\n\n` +
+        `Şimdi sayaç başlatabilirsin.`;
+
+      const kb = Markup.inlineKeyboard([
+        [Markup.button.callback('▶️ Başlat (Sayaç)', `ad_start:${adId}`)],
+        [Markup.button.callback('⬅️ Menü', 'back_menu')],
+      ]);
+
+      try {
+        await ctx.editMessageText(text, { parse_mode: 'Markdown', ...kb });
+      } catch {
+        await ctx.reply(text, { parse_mode: 'Markdown', ...kb });
+      }
+    } catch (err) {
+      console.error(err);
+      try { await ctx.answerCbQuery('Hata'); } catch {}
+      await ctx.reply('❌ İşlem sırasında hata oluştu.', mainMenu());
+    }
+  });
+
+bot.action(/^ad_start:(\d+)$/, async (ctx) => {
     const adId = Number(ctx.match[1]);
 
     try {
