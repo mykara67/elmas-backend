@@ -235,11 +235,13 @@ async function pickActiveAd() {
         return ctx.reply('📭 Şu an aktif reklam yok. Sonra tekrar dene.', mainMenu());
       }
 
-      const seconds = Number(ad.seconds || 10);
-      const reward = Number(ad.reward || 0);
+      const seconds = Math.max(10, Number(ad.seconds || 10));
+      const reward = Math.max(0, Number(ad.reward || 0));
+      const nonce = Math.random().toString(36).slice(2, 8);
 
       await setPending(tgId, 'watch_ad', {
         ad_id: ad.id,
+        nonce,
         seconds,
         reward,
         started: false,
@@ -255,7 +257,7 @@ async function pickActiveAd() {
 
       const kb = Markup.inlineKeyboard([
       ...(ad.url ? [[Markup.button.url('🔗 Reklamı Aç', ad.url)]] : []),
-      [Markup.button.callback('✅ Reklamı Açtım', `ad_opened:${ad.id}`)],
+      [Markup.button.callback('✅ Reklamı Açtım', `ad_opened:${ad.id}:${nonce}`)],
       [Markup.button.callback('⬅️ Menü', 'back_menu')],
     ]);
 
@@ -270,8 +272,9 @@ async function pickActiveAd() {
   // 2) "▶️ Başlat" -> Sayaç -> Ödeme
   
   // 2) "✅ Reklamı Açtım" -> Kullanıcı linke tıkladığını onaylar, sonra sayaç butonu gösterilir
-  bot.action(/^ad_opened:(\d+)$/, async (ctx) => {
+  bot.action(/^ad_opened:(\d+):([a-z0-9]{0,10})$/, async (ctx) => {
     const adId = Number(ctx.match[1]);
+    const nonce = String(ctx.match[2] || '');
 
     try {
       await ctx.answerCbQuery();
@@ -287,8 +290,14 @@ async function pickActiveAd() {
       if (!pd || Number(pd.ad_id) !== adId) {
         return ctx.reply('⚠️ Reklam oturumu uyuşmuyor. Menüden tekrar dene.', mainMenu());
       }
+      if (pd.nonce && nonce && String(pd.nonce) !== nonce) {
+        return ctx.reply('⚠️ Bu reklam oturumu geçersiz. Menüden yeniden başlat.', mainMenu());
+      }
+      if (pd.nonce && nonce && String(pd.nonce) !== nonce) {
+        return ctx.reply('⚠️ Bu reklam oturumu geçersiz. Menüden tekrar dene.', mainMenu());
+      }
 
-      const seconds = Number(pd.seconds || 10);
+      const seconds = Math.max(10, Number(pd.seconds || 10));
       const reward = Number(pd.reward || 0);
 
       await setPending(tgId, 'watch_ad', {
@@ -306,7 +315,7 @@ async function pickActiveAd() {
         `Şimdi sayaç başlatabilirsin.`;
 
       const kb = Markup.inlineKeyboard([
-        [Markup.button.callback('▶️ Başlat (Sayaç)', `ad_start:${adId}`)],
+        [Markup.button.callback('▶️ Başlat (Sayaç)', `ad_start:${adId}:${pd.nonce || ''}`)],
         [Markup.button.callback('⬅️ Menü', 'back_menu')],
       ]);
 
@@ -322,8 +331,10 @@ async function pickActiveAd() {
     }
   });
 
-bot.action(/^ad_start:(\d+)$/, async (ctx) => {
+bot.action(/^ad_start:(\d+):([a-z0-9]{0,10})$/, async (ctx) => {
     const adId = Number(ctx.match[1]);
+
+    const nonce = String(ctx.match[2] || '');
 
     try {
       await ctx.answerCbQuery();
@@ -344,7 +355,7 @@ bot.action(/^ad_start:(\d+)$/, async (ctx) => {
         return ctx.reply('⏳ Sayaç zaten başlamış. Bitmesini bekle.', mainMenu());
       }
 
-      const seconds = Number(pd.seconds || 10);
+      const seconds = Math.max(10, Number(pd.seconds || 10));
       const reward = Number(pd.reward || 0);
 
       await setPending(tgId, 'watch_ad', {
@@ -425,4 +436,3 @@ const PORT = process.env.PORT || 10000;
 
 app.get('/health', (req, res) => res.send('OK'));
 app.listen(PORT, () => console.log(`🌐 Health server running on ${PORT}`));
-// redeploy
