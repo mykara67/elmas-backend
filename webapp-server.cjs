@@ -1,99 +1,131 @@
-// webapp-server.cjs (Supabase version)
-require('dotenv').config()
-const express = require('express')
-const path = require('path')
-const crypto = require('crypto')
-const { createClient } = require('@supabase/supabase-js')
+// web-server.cjs
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import { createClient } from "@supabase/supabase-js";
 
-const app = express()
-app.disable('x-powered-by')
-app.use(express.json({ limit: '1mb' }))
+const app = express();
+app.use(express.json());
 
-const BOT_TOKEN = process.env.BOT_TOKEN || ''
-const SUPABASE_URL = process.env.SUPABASE_URL
-const SUPABASE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+const PORT = process.env.PORT || 10000;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.log('❌ WebApp: SUPABASE_URL veya KEY yok')
-}
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; // Render ENV'de olacak
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false }
-})
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// ---- CORS ----
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-  if (req.method === 'OPTIONS') return res.status(204).end()
-  next()
-})
+// Basit reklam sayfası
+app.get("/ad/:nonce", async (req, res) => {
+  const { nonce } = req.params;
 
-app.get('/', (req, res) => res.redirect('/webapp/'))
+  // nonce var mı kontrol
+  const { data: view, error } = await supabase
+    .from("ad_views")
+    .select("id, ad_id, status")
+    .eq("nonce", nonce)
+    .maybeSingle();
 
-// ---- Static WebApp ----
-app.use('/webapp', express.static(path.join(__dirname, 'webapp'), { extensions: ['html'] }))
-
-// ---- Telegram initData validation (optional strict) ----
-function verifyInitData(initData) {
-  try {
-    if (!BOT_TOKEN) return false
-    const params = new URLSearchParams(initData)
-    const hash = params.get('hash')
-    if (!hash) return false
-    params.delete('hash')
-    // data-check-string
-    const pairs = []
-    for (const [k, v] of params.entries()) pairs.push(`${k}=${v}`)
-    pairs.sort()
-    const dataCheckString = pairs.join('\n')
-
-    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest()
-    const computed = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
-    return computed.toLowerCase() === hash.toLowerCase()
-  } catch {
-    return false
+  if (error || !view) {
+    return res.status(404).send("Ad view not found.");
   }
-}
 
-function getTelegramIdFromInitData(initData) {
-  const params = new URLSearchParams(initData)
-  const userStr = params.get('user')
-  if (!userStr) return null
-  const u = JSON.parse(userStr)
-  return u?.id || null
-}
+  // Reklam bilgisini çek
+  const { data: ad } = await supabase
+    .from("ads")
+    .select("id,title,url,seconds,reward,is_active,is_vip")
+    .eq("id", view.ad_id)
+    .maybeSingle();
 
-app.post('/api/me', async (req, res) => {
-  const initData = req.body?.initData || ''
-  if (!verifyInitData(initData)) return res.status(401).json({ ok: false, error: 'bad_init_data' })
-  const telegram_id = getTelegramIdFromInitData(initData)
-  if (!telegram_id) return res.status(400).json({ ok: false, error: 'no_user' })
+  if (!ad || ad.is_active !== true) {
+    return res.status(404).send("Ad not active.");
+  }
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('telegram_id, username, first_name, token, balance_tl, vip')
-    .eq('telegram_id', telegram_id)
-    .maybeSingle()
+  // Basit HTML + sayaç
+  // AdSense'i buraya SONRA ekleyeceğiz (şimdilik placeholder)
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>${ad.title ?? "Reklam"}</title>
+  <style>
+    body{font-family:Arial;background:#0b1220;color:#fff;margin:0;padding:18px}
+    .card{max-width:720px;margin:0 auto;background:#121a2b;border-radius:16px;padding:16px}
+    .btn{display:inline-block;padding:12px 14px;background:#2d6cdf;color:#fff;border-radius:12px;text-decoration:none;margin-top:10px}
+    .muted{opacity:.8}
+    .timer{font-size:20px;margin:12px 0}
+    iframe{width:100%;height:360px;border:0;border-radius:12px;background:#000}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>${ad.title ?? "Reklam"}</h2>
+    <div class="muted">Süre bitmeden ödül yok. Sayfayı kapatma.</div>
 
-  if (error) return res.status(500).json({ ok: false, error: error.message })
-  if (!data) return res.json({ ok: true, user: { telegram_id, token: 0, balance_tl: 0, vip: False } })
-  return res.json({ ok: true, user: data })
-})
+    <div class="timer">Kalan süre: <b id="t">--</b> sn</div>
 
-app.get('/api/packages', async (req, res) => {
-  // Placeholder: you can store packages table in Supabase later.
-  return res.json({
-    ok: true,
-    packages: [
-      { id: 'P1', title: 'Mini', price_elmas: 1000, total_views: 100 },
-      { id: 'P2', title: 'Standart', price_elmas: 3000, total_views: 350 },
-      { id: 'P3', title: 'Pro', price_elmas: 8000, total_views: 1000 }
-    ]
-  })
-})
+    <!-- Reklam içeriği (şimdilik linki iframe ile açıyoruz) -->
+    <iframe src="${ad.url}"></iframe>
 
-const PORT = Number(process.env.PORT || 3000)
-app.listen(PORT, () => console.log(`🧬 WebApp server running on port ${PORT} (/webapp)`))
+    <div id="done" style="display:none;margin-top:12px">
+      ✅ Süre doldu. Ödül almaya hak kazandın.
+    </div>
+
+    <div class="muted" style="margin-top:10px">
+      Bu sayfa sayaç bitince otomatik onay gönderir.
+    </div>
+  </div>
+
+<script>
+  const seconds = Math.max(10, Number(${ad.seconds ?? 10}));
+  let left = seconds;
+  const tEl = document.getElementById("t");
+  const doneEl = document.getElementById("done");
+
+  function tick(){
+    tEl.textContent = left;
+    left--;
+    if(left < 0){
+      doneEl.style.display = "block";
+      fetch("/complete/${nonce}", { method:"POST" }).catch(()=>{});
+      return;
+    }
+    setTimeout(tick, 1000);
+  }
+  tick();
+</script>
+</body>
+</html>
+  `);
+});
+
+// Sayaç bittiğinde onay endpointi
+app.post("/complete/:nonce", async (req, res) => {
+  const { nonce } = req.params;
+
+  const { data: view, error } = await supabase
+    .from("ad_views")
+    .select("id,status")
+    .eq("nonce", nonce)
+    .maybeSingle();
+
+  if (error || !view) return res.status(404).json({ ok: false });
+
+  if (view.status === "completed") return res.json({ ok: true });
+
+  const { error: upErr } = await supabase
+    .from("ad_views")
+    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .eq("id", view.id);
+
+  if (upErr) return res.status(500).json({ ok: false });
+  res.json({ ok: true });
+});
+
+app.get("/health", (req,res)=>res.send("ok"));
+
+app.listen(PORT, () => console.log("web listening on", PORT));
