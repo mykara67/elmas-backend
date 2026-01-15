@@ -4,9 +4,9 @@
   "type": "commonjs",
   "main": "server.cjs",
   "scripts": {
-    "start": "node server.cjs",
-    "bot": "node bot.cjs"
-  },
+  "start": "node web-server.cjs",
+  "bot": "node bot.cjs"
+},
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "dotenv": "^17.2.3",
