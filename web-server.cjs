@@ -1,297 +1,308 @@
-const express = require("express");
-const cors = require("cors");
-const crypto = require("crypto");
-const path = require("path");
-const fs = require("fs");
+// web-server.cjs (debug+fix)
+// - Safer Telegram initData verification (no timingSafeEqual length crash)
+// - More detailed logs for /api/ad/next and /api/ad/complete
 
+const express = require("express");
+const path = require("path");
+const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 const PORT = process.env.PORT || 10000;
 
+// ---------- Static WebApp ----------
+const ROOT = process.cwd();
+const WEBAPP_DIR = path.join(ROOT, "webapp");
+
+app.get("/", (req, res) => res.status(200).send("OK"));
+
+app.use("/webapp", express.static(WEBAPP_DIR, {
+  extensions: ["html"],
+  fallthrough: true,
+  maxAge: "0",
+}));
+
+app.get(["/webapp", "/webapp/"], (req, res) => {
+  res.sendFile(path.join(WEBAPP_DIR, "index.html"));
+});
+
+// ---------- Supabase ----------
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.log("❌ SUPABASE_URL veya SUPABASE_SERVICE_ROLE_KEY eksik!");
+const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_ROLE_KEY || "", {
+  auth: { persistSession: false },
+});
+
+// ---------- Telegram initData verification ----------
+const BOT_TOKEN = process.env.BOT_TOKEN || "";
+
+// Placeholder/bozuk reklam linkleri varken odeme yapmayalim.
+function isValidAdUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  const u = url.trim();
+  if (!u) return false;
+  // placeholder/ornek linkler
+  if (/SENIN_/i.test(u)) return false;
+  if (u === "https://example.com") return false;
+  // temel format
+  if (!/^https?:\/\//i.test(u)) return false;
+  return true;
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// users tablosunda kolon adi token mi tokens mi bilinmedigi icin fallback.
+async function incrementUserBalances(tg_id, tlInc, elmasInc) {
+  // 1) once tokens kolonu deneyelim
+  let r = await supabase
+    .from("users")
+    .update({
+      balance_tl: supabase.rpc ? undefined : undefined,
+    })
+    .eq("tg_id", tg_id);
 
-// Webapp dizini
-const WEBAPP_DIR = path.join(process.cwd(), "webapp");
-if (fs.existsSync(WEBAPP_DIR)) {
-  app.use(express.static(WEBAPP_DIR));
-  console.log("✅ Serving WEBAPP DIR:", WEBAPP_DIR);
-} else {
-  console.log("⚠️ WEBAPP klasörü bulunamadı:", WEBAPP_DIR);
+  // supabase-js update ile atomik arttirma icin rpc kullanmak en dogrusu ama
+  // burada pratik cozum: once mevcut degerleri cekip sonra update.
+  const { data: u, error: uErr } = await supabase
+    .from("users")
+    .select("tg_id,balance_tl,tokens,token")
+    .eq("tg_id", tg_id)
+    .maybeSingle();
+  if (uErr) throw uErr;
+  const curTl = Number(u?.balance_tl || 0);
+  const hasTokens = Object.prototype.hasOwnProperty.call(u || {}, "tokens");
+  const hasToken = Object.prototype.hasOwnProperty.call(u || {}, "token");
+  const curElmas = hasTokens ? Number(u?.tokens || 0) : hasToken ? Number(u?.token || 0) : 0;
+
+  const patch = { balance_tl: +(curTl + tlInc).toFixed(2) };
+  if (hasTokens) patch.tokens = +(curElmas + elmasInc).toFixed(2);
+  else if (hasToken) patch.token = +(curElmas + elmasInc).toFixed(2);
+
+  const { error: upErr } = await supabase.from("users").update(patch).eq("tg_id", tg_id);
+  if (upErr) throw upErr;
 }
 
-// --------------------
-// Helpers
-// --------------------
-function isValidVideoUrl(url) {
-  if (!url) return false;
-  const u = String(url).toLowerCase().trim();
-  // gerçek reklam video olsun: mp4/webm/mov/m3u8 gibi
+function sha256(data) {
+  return crypto.createHash("sha256").update(data).digest();
+}
+function hmacSha256Hex(key, data) {
+  return crypto.createHmac("sha256", key).update(data).digest("hex");
+}
+function safeTimingEqualHex(aHex, bHex) {
+  if (typeof aHex !== "string" || typeof bHex !== "string") return false;
+  if (aHex.length !== bHex.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(aHex), Buffer.from(bHex));
+  } catch (_) {
+    return false;
+  }
+}
+function verifyTelegramInitData(initDataRaw) {
+  if (!initDataRaw || typeof initDataRaw !== "string") return { ok: false, reason: "missing_initdata" };
+  const params = new URLSearchParams(initDataRaw);
+  const hash = params.get("hash");
+  if (!hash) return { ok: false, reason: "missing_hash" };
+
+  // data-check-string
+  const pairs = [];
+  for (const [k, v] of params.entries()) {
+    if (k === "hash") continue;
+    pairs.push([k, v]);
+  }
+  pairs.sort((a, b) => a[0].localeCompare(b[0]));
+  const dataCheckString = pairs.map(([k, v]) => `${k}=${v}`).join("\n");
+
+  // parse user
+  let user = null;
+  const userJson = params.get("user");
+  if (userJson) {
+    try { user = JSON.parse(userJson); } catch (e) {}
+  }
+
+  if (!BOT_TOKEN) {
+    console.warn("⚠️ BOT_TOKEN missing on web service. initData verification skipped.");
+    return { ok: true, user, skipped: true };
+  }
+
+  const secretKey = sha256(BOT_TOKEN);
+  const calc = hmacSha256Hex(secretKey, dataCheckString);
+
+  const ok = safeTimingEqualHex(calc, hash);
+  return { ok, user, reason: ok ? "ok" : "bad_hash" };
+}
+
+function getInitData(req) {
   return (
-    u.startsWith("http://") ||
-    u.startsWith("https://")
-  ) && (
-    u.endsWith(".mp4") ||
-    u.endsWith(".webm") ||
-    u.endsWith(".mov") ||
-    u.endsWith(".m3u8")
+    req.headers["x-telegram-init-data"] ||
+    req.query.initData ||
+    (req.body && req.body.initData) ||
+    ""
   );
 }
 
-async function detectUserTokenColumn() {
-  // users.token mi users.tokens mu var kontrol edelim
-  // Supabase postgrest: select ile kolon var mı bakıyoruz
-  // token var mı:
-  let hasToken = false;
-  let hasTokens = false;
+// ---------- Helpers ----------
+function short(s, n=90){ if(!s) return ""; s=String(s); return s.length>n? (s.slice(0,n)+"…") : s; }
+
+// ---------- API: GET /api/ad/next ----------
+app.get("/api/ad/next", async (req, res) => {
+  const initData = getInitData(req);
+  const v = verifyTelegramInitData(initData);
+
+  console.log("➡️ /api/ad/next", { ok: v.ok, reason: v.reason, initDataLen: (initData||"").length });
+
+  if (!v.ok) return res.status(401).json({ ok: false, error: "bad_init_data", reason: v.reason });
+
+  const tgUser = v.user;
+  if (!tgUser?.id) return res.status(400).json({ ok: false, error: "no_user" });
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("❌ missing supabase env", { hasUrl: !!SUPABASE_URL, hasKey: !!SUPABASE_SERVICE_ROLE_KEY });
+    return res.status(500).json({ ok: false, error: "missing_supabase_env" });
+  }
 
   try {
-    const { error: e1 } = await supabase.from("users").select("token").limit(1);
-    if (!e1) hasToken = true;
-  } catch (err) {}
-
-  try {
-    const { error: e2 } = await supabase.from("users").select("tokens").limit(1);
-    if (!e2) hasTokens = true;
-  } catch (err) {}
-
-  if (hasTokens) return "tokens";
-  if (hasToken) return "token";
-  return null;
-}
-
-async function addRewardToUser(tg_id, tlReward, elmasReward) {
-  const col = await detectUserTokenColumn();
-
-  // users kaydı var mı?
-  const { data: u, error: uErr } = await supabase
-    .from("users")
-    .select("*")
-    .eq("tg_id", tg_id)
-    .maybeSingle();
-
-  if (uErr) {
-    console.log("❌ users_select_error:", uErr);
-    return { ok: false, reason: "users_select_error", error: uErr };
-  }
-
-  // yoksa oluştur
-  if (!u) {
-    const insertPayload = {
-      tg_id,
-      balance_tl: Number(tlReward || 0),
-    };
-    if (col) insertPayload[col] = Number(elmasReward || 0);
-
-    const { error: insErr } = await supabase.from("users").insert(insertPayload);
-    if (insErr) {
-      console.log("❌ users_insert_error:", insErr);
-      return { ok: false, reason: "users_insert_error", error: insErr };
-    }
-    return { ok: true, created: true };
-  }
-
-  // varsa güncelle
-  const newBalance = Number(u.balance_tl || 0) + Number(tlReward || 0);
-
-  const updatePayload = {
-    balance_tl: newBalance,
-  };
-
-  if (col) {
-    updatePayload[col] = Number(u[col] || 0) + Number(elmasReward || 0);
-  }
-
-  const { error: upErr } = await supabase
-    .from("users")
-    .update(updatePayload)
-    .eq("tg_id", tg_id);
-
-  if (upErr) {
-    console.log("❌ users_update_error:", upErr);
-    return { ok: false, reason: "users_update_error", error: upErr };
-  }
-
-  return { ok: true, created: false };
-}
-
-// --------------------
-// AD NEXT: reklam getir + session oluştur
-// --------------------
-app.post("/api/ad/next", async (req, res) => {
-  try {
-    const { tg_id } = req.body || {};
-
-    if (!tg_id) {
-      return res.json({ ok: false, reason: "missing_tg_id" });
-    }
-
-    // aktif reklam çek
-    const { data: ads, error: adErr } = await supabase
+    const { data: ad, error: adErr } = await supabase
       .from("ads")
-      .select("*")
+      .select("id,title,url,reward,seconds,is_active")
       .eq("is_active", true)
-      .order("id", { ascending: true })
-      .limit(10);
+      .order("id", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (adErr) {
-      console.log("❌ ads_select_error:", adErr);
-      return res.json({ ok: false, reason: "ads_select_error" });
+      console.error("❌ ads select error:", adErr);
+      return res.status(500).json({ ok: false, error: "ads_select_error", details: adErr.message || String(adErr) });
     }
 
-    if (!ads || ads.length === 0) {
-      return res.json({ ok: false, reason: "no_ads" });
+    if (!ad || !isValidAdUrl(ad.url)) {
+      console.log("ℹ️ no active/valid ad");
+      return res.json({ ok: true, no_ad: true });
     }
 
-    // gerçek video url olan reklamı seç
-    const ad = ads.find((x) => isValidVideoUrl(x.url));
+    const requiredSeconds = Number(ad.seconds || 15);
 
-    if (!ad) {
-      // url mp4 değilse ödül olmasın
-      return res.json({ ok: false, reason: "no_real_video_ad" });
+    const { data: sess, error: sessErr } = await supabase
+      .from("ad_watch_sessions")
+      .insert({
+        tg_id: String(tgUser.id),
+        ad_id: ad.id,
+        required_seconds: requiredSeconds,
+        paid: false,
+      })
+      .select("id,ad_id,required_seconds,started_at,paid")
+      .single();
+
+    if (sessErr) {
+      console.error("❌ ad_watch_sessions insert error:", sessErr);
+      return res.status(500).json({ ok: false, error: "session_insert_error", details: sessErr.message || String(sessErr) });
     }
 
-    const requiredSeconds = Number(ad.seconds || 10);
-    const sessionId = crypto.randomUUID();
-
-    // session oluştur
-    const { error: sesErr } = await supabase.from("ad_watch_sessions").insert({
-      session_id: sessionId,
-      tg_id,
-      ad_id: ad.id,
-      required_seconds: requiredSeconds,
-      started_at: new Date().toISOString(),
-      is_paid: false,
-    });
-
-    if (sesErr) {
-      console.log("❌ session_insert_error:", sesErr);
-      return res.json({ ok: false, reason: "session_insert_error" });
-    }
+    console.log("✅ session created", { session_id: sess.id, ad_id: ad.id, requiredSeconds });
 
     return res.json({
       ok: true,
-      session_id: sessionId,
+      session_id: sess.id,
       ad: {
         id: ad.id,
         title: ad.title,
         url: ad.url,
         seconds: requiredSeconds,
-        reward_tl: Number(ad.reward_tl || 0),
-        reward_token: Number(ad.reward_token || 0),
-        text: ad.text || null,
+        reward_tl: Number(ad.reward || 0),
+        reward_elmas: Number(ad.reward || 0),
       },
     });
   } catch (e) {
-    console.log("❌ /api/ad/next crash:", e);
-    return res.json({ ok: false, reason: "server_crash" });
+    console.error("❌ /api/ad/next server_error:", e?.message || e);
+    return res.status(500).json({ ok: false, error: "server_error", details: e?.message || String(e) });
   }
 });
 
-// --------------------
-// AD COMPLETE: sayaç bitince ödeme
-// --------------------
+// ---------- API: POST /api/ad/complete ----------
 app.post("/api/ad/complete", async (req, res) => {
+  const initData = getInitData(req);
+  const v = verifyTelegramInitData(initData);
+
+  console.log("➡️ /api/ad/complete", { ok: v.ok, reason: v.reason, initDataLen: (initData||"").length });
+
+  if (!v.ok) return res.status(401).json({ ok: false, error: "bad_init_data", reason: v.reason });
+
+  const tgUser = v.user;
+  if (!tgUser?.id) return res.status(400).json({ ok: false, error: "no_user" });
+
+  const { session_id } = req.body || {};
+  if (!session_id) return res.status(400).json({ ok: false, error: "missing_session_id" });
+
   try {
-    const { session_id, tg_id } = req.body || {};
-
-    if (!session_id || !tg_id) {
-      return res.json({ ok: false, reason: "missing_params" });
-    }
-
-    // session çek
-    const { data: s, error: sErr } = await supabase
+    const { data: sess, error: sessErr } = await supabase
       .from("ad_watch_sessions")
       .select("*")
-      .eq("session_id", session_id)
+      .eq("id", session_id)
       .maybeSingle();
+    if (sessErr) {
+      console.error("❌ session select error:", sessErr);
+      return res.status(500).json({ ok: false, error: "session_select_error", details: sessErr.message || String(sessErr) });
+    }
+    if (!sess) return res.status(404).json({ ok: false, error: "session_not_found" });
+    if (String(sess.tg_id) !== String(tgUser.id)) return res.status(403).json({ ok: false, error: "session_user_mismatch" });
+    if (sess.paid) return res.json({ ok: true, already_paid: true });
 
-    if (sErr || !s) {
-      console.log("❌ session_select_error:", sErr);
-      return res.json({ ok: false, reason: "session_not_found" });
+    const required = Number(sess.required_seconds || 0);
+    const startedAt = sess.started_at ? new Date(sess.started_at).getTime() : 0;
+    const elapsed = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : required;
+
+    if (required > 0 && elapsed + 1 < required) {
+      return res.status(400).json({ ok: false, error: "watch_time_not_met", required, elapsed });
     }
 
-    if (s.is_paid) {
-      return res.json({ ok: true, already_paid: true });
-    }
+    // Odeme miktarini reklamin kendisinden al (reklam yoksa odeme YOK)
+    const tgIdNum = Number(tgUser.id);
 
-    // doğru kullanıcı mı
-    if (String(s.tg_id) !== String(tg_id)) {
-      return res.json({ ok: false, reason: "session_user_mismatch" });
-    }
-
-    // süre kontrolü
-    const startedAt = new Date(s.started_at).getTime();
-    const now = Date.now();
-    const requiredMs = Number(s.required_seconds || 10) * 1000;
-
-    if (!startedAt || isNaN(startedAt)) {
-      return res.json({ ok: false, reason: "bad_started_at" });
-    }
-
-    if (now - startedAt < requiredMs) {
-      return res.json({ ok: false, reason: "time_not_completed" });
-    }
-
-    // reklam çek
-    const { data: ad, error: adErr } = await supabase
+    const { data: adRow, error: adErr } = await supabase
       .from("ads")
-      .select("*")
-      .eq("id", s.ad_id)
+      .select("id,url,reward,is_active")
+      .eq("id", sess.ad_id)
       .maybeSingle();
 
-    if (adErr || !ad) {
-      return res.json({ ok: false, reason: "ad_not_found" });
+    if (adErr) {
+      console.error("❌ ad select error:", adErr);
+      return res.status(500).json({ ok: false, error: "ad_select_error", details: adErr.message || String(adErr) });
     }
 
-    // güvenlik: gerçek video url değilse ödeme yok
-    if (!isValidVideoUrl(ad.url)) {
-      return res.json({ ok: false, reason: "no_real_ad_url" });
+    if (!adRow || adRow.is_active !== true || !isValidAdUrl(adRow.url)) {
+      return res.status(400).json({ ok: false, error: "no_ad" });
     }
 
-    const tlReward = Number(ad.reward_tl || 0);
-    const elmasReward = Number(ad.reward_token || 0);
-
-    // kullanıcıya ödül ekle
-    const rewardRes = await addRewardToUser(tg_id, tlReward, elmasReward);
-    if (!rewardRes.ok) {
-      return res.json({ ok: false, reason: rewardRes.reason });
+    const reward_tl = Number(adRow.reward || 0);
+    const reward_elmas = reward_tl;
+    if (!(reward_tl > 0)) {
+      return res.status(400).json({ ok: false, error: "invalid_reward" });
     }
 
-    // session paid yap
-    const { error: paidErr } = await supabase
+    // tokens = ELMAS (senin bot mantigina gore)
+    await incrementUserBalances(tgIdNum, reward_elmas, reward_tl);
+
+    const { error: sessUpdErr } = await supabase
       .from("ad_watch_sessions")
-      .update({
-        is_paid: true,
-        paid_at: new Date().toISOString(),
-      })
-      .eq("session_id", session_id);
-
-    if (paidErr) {
-      console.log("❌ paid_update_error:", paidErr);
-      return res.json({ ok: false, reason: "paid_update_error" });
+      .update({ paid: true, completed_at: new Date().toISOString() })
+      .eq("id", session_id);
+    if (sessUpdErr) {
+      console.error("❌ session update error:", sessUpdErr);
+      return res.status(500).json({ ok: false, error: "session_update_error", details: sessUpdErr.message || String(sessUpdErr) });
     }
 
-    return res.json({ ok: true, paid: true, tlReward, elmasReward });
+    console.log("✅ paid session", { session_id, tg_id: tgUser.id, reward_tl, reward_elmas });
+
+    return res.json({ ok: true, reward_tl, reward_elmas });
   } catch (e) {
-    console.log("❌ /api/ad/complete crash:", e);
-    return res.json({ ok: false, reason: "server_crash" });
+    console.error("❌ /api/ad/complete server_error:", e?.message || e);
+    return res.status(500).json({ ok: false, error: "server_error", details: e?.message || String(e) });
   }
 });
 
-// health
-app.get("/health", (req, res) => res.send("OK"));
+app.use("/webapp", (req, res) => res.status(404).send("Cannot GET " + req.originalUrl));
 
 app.listen(PORT, () => {
   console.log("✅ Web server running on port", PORT);
+  console.log("✅ Serving WEBAPP DIR:", WEBAPP_DIR);
 });
