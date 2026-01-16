@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f19" />
+  <title>Reklam İzle • ELMAS</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f19;
+      --card:#121a2a;
+      --text:#e9eefc;
+      --muted:#9fb0d0;
+      --accent:#6d7cff;
+      --danger:#ff4d6d;
+      --ok:#2dd4bf;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: radial-gradient(1200px 600px at 20% 0%, rgba(109,124,255,.25), transparent 55%),
+                  radial-gradient(900px 500px at 80% 10%, rgba(45,212,191,.18), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+    .card{
+      width:min(560px, 100%);
+      background: rgba(18,26,42,.92);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:16px 18px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .brand{
+      display:flex; gap:10px; align-items:center;
+    }
+    .logo{
+      width:38px;height:38px;border-radius:12px;
+      display:grid;place-items:center;
+      background: linear-gradient(135deg, rgba(109,124,255,.35), rgba(45,212,191,.25));
+      border:1px solid rgba(255,255,255,.08);
+      font-weight:800;
+    }
+    .ttl{font-weight:800; letter-spacing:.2px}
+    .sub{color:var(--muted); font-size:12px; margin-top:2px}
+    .pill{
+      font-size:12px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--muted);
+      background: rgba(255,255,255,.03);
+      white-space:nowrap;
+    }
+    .body{padding:18px}
+    .box{
+      background: rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius: 16px;
+      padding:14px;
+    }
+    .row{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .timer{
+      display:flex; gap:10px; align-items:center;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.18);
+    }
+    .tNum{
+      font-size:18px;
+      font-weight:900;
+      color:var(--accent);
+      min-width:42px;
+      text-align:center;
+    }
+    .tLbl{font-size:12px; color:var(--muted)}
+    .bar{
+      height:10px;
+      width:100%;
+      background: rgba(255,255,255,.06);
+      border-radius:999px;
+      overflow:hidden;
+      margin-top:12px;
+    }
+    .bar > div{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, var(--accent), rgba(45,212,191,.9));
+      transition: width .25s linear;
+    }
+    .adFrame{
+      margin-top:14px;
+      border-radius:16px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.06);
+      background: rgba(0,0,0,.2);
+      height: 280px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+    }
+    .adHint{
+      color:var(--muted);
+      font-size:13px;
+      text-align:center;
+      padding:18px;
+      line-height:1.35;
+    }
+    .badge{
+      position:absolute;
+      top:12px; left:12px;
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--muted);
+    }
+    .msg{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:13px;
+      min-height:18px;
+    }
+    .danger{color:var(--danger)}
+    .ok{color:var(--ok)}
+    .footer{
+      padding:14px 18px;
+      border-top:1px solid rgba(255,255,255,.06);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      color:var(--muted);
+      font-size:12px;
+    }
+    button{
+      appearance:none;
+      border:none;
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding:10px 12px;
+      border-radius: 14px;
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,.08);
+    }
+    button:active{transform: translateY(1px)}
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="top">
+      <div class="brand">
+        <div class="logo">⟠</div>
+        <div>
+          <div class="ttl">Reklam İzle</div>
+          <div class="sub">Sayaç bitince ödül otomatik verilir</div>
+        </div>
+      </div>
+      <div class="pill" id="pill">Hazırlanıyor…</div>
+    </div>
+
+    <div class="body">
+      <div class="box">
+        <div class="row">
+          <div class="timer">
+            <div class="tNum" id="sec">--</div>
+            <div>
+              <div class="tLbl">Kalan süre</div>
+              <div class="tLbl" id="userLine">Kullanıcı: —</div>
+            </div>
+          </div>
+          <button id="btnClose" type="button">Kapat</button>
+        </div>
+
+        <div class="bar"><div id="barFill"></div></div>
+
+        <div class="adFrame" id="adFrame">
+          <div class="badge">REKLAM</div>
+          <div class="adHint" id="adHint">
+            Reklam yükleniyor…<br/>
+            <small>(Bu demo ekranda gerçek reklam entegrasyonu bir sonraki adımda bağlanacak)</small>
+          </div>
+        </div>
+
+        <div class="msg" id="msg"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>ELMAS • Telegram Mini App</div>
+      <div id="foot">v1</div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const tg = window.Telegram?.WebApp;
+  const pill = document.getElementById("pill");
+  const secEl = document.getElementById("sec");
+  const barFill = document.getElementById("barFill");
+  const msg = document.getElementById("msg");
+  const userLine = document.getElementById("userLine");
+  const btnClose = document.getElementById("btnClose");
+
+  // Telegram içinde değilse de çalışsın
+  try { tg?.ready(); tg?.expand(); } catch(e){}
+
+  btnClose.onclick = () => {
+    try { tg?.close(); } catch(e){}
+    // fallback
+    setTimeout(()=>{ window.close(); }, 150);
+  };
+
+  const params = new URLSearchParams(location.search);
+  const sid = params.get("sid") || "";
+  const demoSeconds = 15;
+
+  function setPill(text){ pill.textContent = text; }
+  function setMsg(text, cls){
+    msg.className = "msg " + (cls || "");
+    msg.textContent = text || "";
+  }
+
+  // init user
+  const uname = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || "—";
+  userLine.textContent = "Kullanıcı: " + uname;
+
+  // Eğer initData yoksa (Telegram dışında açıldıysa) uyar
+  if (!tg?.initData) {
+    setPill("Telegram dışında");
+    setMsg("Bu sayfa Telegram içinde açılmalıdır.", "danger");
+    secEl.textContent = "--";
+    return;
+  }
+
+  // Demo sayaç: gerçek sistemde burada rewarded ad gösterilecek.
+  // Ödül verme: backend endpoint'in varsa buraya bağlayacağız.
+  let remaining = demoSeconds;
+  secEl.textContent = remaining;
+
+  setPill("Reklam oynatılıyor…");
+  setMsg("Lütfen bekleyin, sayaç bitince ödül otomatik verilecek.", "");
+
+  const total = demoSeconds;
+
+  const timer = setInterval(async () => {
+    remaining -= 1;
+    if (remaining < 0) remaining = 0;
+
+    secEl.textContent = remaining;
+    const pct = Math.round(((total - remaining) / total) * 100);
+    barFill.style.width = pct + "%";
+
+    if (remaining <= 0) {
+      clearInterval(timer);
+      setPill("Tamamlandı");
+      setMsg("Ödül veriliyor…", "");
+
+      try {
+        // Backend endpoint örneği (senin projeye göre düzenlenecek):
+        // await fetch("/api/reward/complete", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ sid }) });
+
+        setMsg("Ödül verildi ✅", "ok");
+      } catch (e) {
+        setMsg("Ödül verilemedi (backend yok) ❌", "danger");
+      }
+
+      // otomatik kapan
+      setTimeout(() => {
+        try { tg.close(); } catch(e){}
+        setTimeout(()=>{ window.close(); }, 150);
+      }, 900);
+    }
+  }, 1000);
+
+})();
+</script>
+</body>
+</html>
