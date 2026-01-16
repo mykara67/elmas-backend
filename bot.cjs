@@ -5,7 +5,7 @@
  * Reklam akışı:
  * 1) "Reklam İzle" -> ads tablosundan bir reklam seçer
  * 2) ad_sessions tablosuna session açar
- * 3) Kullanıcıya Telegram içinde açılan WebApp butonu gönderir (WEB_BASE_URL/ad/:sessionId)
+ * 3) Kullanıcıya Telegram içinde açılan WebApp butonu gönderir (WEB_BASE_URL + WEBAPP_WATCH_PATH + ?sid=...)
  * 4) Ödül verme: Web service (web-server.cjs) /api/ad/complete ile session'ı tamamlayıp ödülü verir.
  *
  * Gerekli ENV:
@@ -14,6 +14,7 @@
  * SUPABASE_URL
  * SUPABASE_SERVICE_ROLE_KEY
  * WEB_BASE_URL
+ * (opsiyonel) WEBAPP_WATCH_PATH  -> default: /webapp/watch.html
  */
 
 const { Telegraf, Markup } = require("telegraf");
@@ -27,6 +28,7 @@ const ADMIN_ID = String(process.env.ADMIN_ID || "");
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const WEB_BASE_URL = (process.env.WEB_BASE_URL || "").replace(/\/+$/, "");
+const WEBAPP_WATCH_PATH = (process.env.WEBAPP_WATCH_PATH || "/webapp/watch.html");
 
 if (!BOT_TOKEN) throw new Error("Missing BOT_TOKEN");
 if (!SUPABASE_URL) throw new Error("Missing SUPABASE_URL");
@@ -189,7 +191,7 @@ async function createAdSession({ telegram_id, ad }) {
 function webAppButton(url) {
   // Telegram içinde webview açar (ayrı tarayıcı yerine)
   return Markup.inlineKeyboard([
-    Markup.button.webApp("▶️ Reklamı Aç (Telegram içinde)", url),
+    Markup.button.webApp("🎬 Reklamı İzle", url),
   ]);
 }
 
@@ -285,9 +287,13 @@ bot.hears("🎥 Reklam İzle", async (ctx) => {
     const rewardTl = fmt2(session.reward_tl || ad.reward_tl || 0);
     const rewardElmas = fmt2(session.reward_elmas || ad.reward_elmas || 0);
 
-    const url = `${WEB_BASE_URL}/ad/${session.session_id}`;
+    // Reklam, Telegram WebApp icinde acilir (harici tarayici degil).
+    // watch.html sayfasi sid parametresiyle session'i alir, sayaci gosterir,
+    // reklam tamamlaninca otomatik odul verir ve Telegram.WebApp.close() ile kapanir.
+    const watchPath = WEBAPP_WATCH_PATH.startsWith("/") ? WEBAPP_WATCH_PATH : `/${WEBAPP_WATCH_PATH}`;
+    const url = `${WEB_BASE_URL}${watchPath}?sid=${encodeURIComponent(session.session_id)}`;
     await ctx.reply(
-      `🎬 ${ad.title || "Reklam"}\n\n⏱ Süre: ${duration} sn\n🎁 Ödül: ${rewardTl} TL + ${rewardElmas} ELMAS\n\n✅ Reklamı Telegram içinde açmak için aşağıdaki butona bas.`,
+      `🎬 ${ad.title || "Reklam"}\n\n⏱ Süre: ${duration} sn\n🎁 Ödül: ${rewardTl} TL + ${rewardElmas} ELMAS\n\n✅ Reklam Telegram icinde acilacak. Reklam bitince odul otomatik yatacak (buton yok).`,
       webAppButton(url)
     );
 
