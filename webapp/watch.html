@@ -2,204 +2,133 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0f19" />
-  <title>Reklam İzle • ELMAS</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reklam İzle</title>
   <style>
-    :root{--bg:#0b0f19;--card:#121a2a;--text:#e9eefc;--muted:#9fb0d0;--accent:#6d7cff;--danger:#ff4d6d;--ok:#2dd4bf;--shadow:0 10px 30px rgba(0,0,0,.35);--radius:18px}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 600px at 20% 0%, rgba(109,124,255,.25), transparent 55%),radial-gradient(900px 500px at 80% 10%, rgba(45,212,191,.18), transparent 60%),var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
-    .card{width:min(560px,100%);background:rgba(18,26,42,.92);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-    .top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.06)}
-    .brand{display:flex;gap:10px;align-items:center}
-    .logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg, rgba(109,124,255,.35), rgba(45,212,191,.25));border:1px solid rgba(255,255,255,.08);font-weight:800}
-    .ttl{font-weight:800;letter-spacing:.2px}
-    .sub{color:var(--muted);font-size:12px;margin-top:2px}
-    .pill{font-size:12px;padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.08);color:var(--muted);background:rgba(255,255,255,.03);white-space:nowrap}
-    .body{padding:18px}
-    .box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:14px}
-    .row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-    .timer{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.18)}
-    .tNum{font-size:18px;font-weight:900;color:var(--accent);min-width:42px;text-align:center}
-    .tLbl{font-size:12px;color:var(--muted)}
-    .bar{height:10px;width:100%;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin-top:12px}
-    .bar>div{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),rgba(45,212,191,.9));transition:width .25s linear}
-    .adFrame{margin-top:14px;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.2);height:320px;display:flex;align-items:center;justify-content:center;position:relative}
-    .badge{position:absolute;top:12px;left:12px;font-size:12px;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);color:var(--muted);z-index:2}
-    video{width:100%;height:100%;object-fit:cover;background:#000}
-    .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:3;padding:16px;text-align:center;color:var(--text)}
-    .overlay.hidden{display:none}
-    .overlay button{margin-top:12px;padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);color:var(--text);cursor:pointer}
-    .msg{margin-top:12px;color:var(--muted);font-size:13px;min-height:18px}
-    .danger{color:var(--danger)} .ok{color:var(--ok)}
-    .footer{padding:14px 18px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}
-    .btnClose{appearance:none;border:none;background:rgba(255,255,255,.06);color:var(--text);padding:10px 12px;border-radius:14px;cursor:pointer;border:1px solid rgba(255,255,255,.08)}
-    .btnClose:active{transform:translateY(1px)}
+    body{font-family:system-ui,Arial;background:#0b1220;color:#fff;margin:0;padding:16px}
+    .card{max-width:520px;margin:0 auto;background:#111a2e;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .muted{opacity:.8;font-size:13px}
+    .bar{height:10px;background:#223255;border-radius:999px;overflow:hidden;margin-top:10px}
+    .bar>div{height:100%;width:0%;background:#4aa3ff;transition:width .3s}
+    .err{color:#ff6b6b;font-size:13px;margin-top:8px}
+    button{border:0;border-radius:10px;padding:10px 12px;background:#2a385c;color:#fff;cursor:pointer}
+    video{width:100%;border-radius:14px;background:#000;margin-top:12px}
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="top">
-      <div class="brand">
-        <div class="logo">⟠</div>
-        <div>
-          <div class="ttl">Reklam İzle</div>
-          <div class="sub">Sayaç bitince ödül otomatik verilir</div>
-        </div>
+    <div class="row">
+      <div>
+        <div style="font-size:18px;font-weight:700">Reklam izle</div>
+        <div class="muted" id="info">Sayaç, video başlayınca başlar. Bitince ödül otomatik verilir.</div>
       </div>
-      <div class="pill" id="pill">Hazırlanıyor…</div>
+      <button id="closeBtn">Kapat</button>
     </div>
-    <div class="body">
-      <div class="box">
-        <div class="row">
-          <div class="timer">
-            <div class="tNum" id="sec">--</div>
-            <div>
-              <div class="tLbl">Kalan süre</div>
-              <div class="tLbl" id="userLine">Kullanıcı: —</div>
-            </div>
-          </div>
-          <button class="btnClose" id="btnClose" type="button">Kapat</button>
-        </div>
 
-        <div class="bar"><div id="barFill"></div></div>
-
-        <div class="adFrame">
-          <div class="badge">REKLAM</div>
-          <video id="vid" playsinline muted></video>
-          <div class="overlay" id="overlay">
-            <div>
-              <div style="font-weight:800;font-size:16px">Videoyu başlat</div>
-              <div style="opacity:.9;margin-top:6px;font-size:13px">Bazı cihazlarda otomatik oynatma engelli. Başlat'a bas.</div>
-              <button id="btnPlay" type="button">▶ Başlat</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="msg" id="msg"></div>
+    <div class="row" style="margin-top:14px">
+      <div>
+        <div class="muted">Kalan süre</div>
+        <div style="font-size:22px;font-weight:800" id="left">--</div>
+      </div>
+      <div style="text-align:right">
+        <div class="muted">Ödül</div>
+        <div style="font-weight:700" id="reward">--</div>
       </div>
     </div>
-    <div class="footer">
-      <div>ELMAS • Telegram Mini App</div>
-      <div>Ödül: 0.25 TL + 0.25 ELMAS</div>
-    </div>
+
+    <div class="bar"><div id="barFill"></div></div>
+    <video id="vid" playsinline controls></video>
+    <div class="err" id="err"></div>
   </div>
 
 <script>
-(async function(){
-  const tg = window.Telegram?.WebApp;
-  const pill = document.getElementById("pill");
-  const secEl = document.getElementById("sec");
-  const barFill = document.getElementById("barFill");
-  const msg = document.getElementById("msg");
-  const userLine = document.getElementById("userLine");
-  const btnClose = document.getElementById("btnClose");
-  const vid = document.getElementById("vid");
-  const overlay = document.getElementById("overlay");
-  const btnPlay = document.getElementById("btnPlay");
+  const qs = new URLSearchParams(location.search);
+  const initData = qs.get('initData') || '';
+  const closeBtn = document.getElementById('closeBtn');
+  const vid = document.getElementById('vid');
+  const leftEl = document.getElementById('left');
+  const rewardEl = document.getElementById('reward');
+  const errEl = document.getElementById('err');
+  const barFill = document.getElementById('barFill');
 
-  const setPill = (t)=>pill.textContent=t;
-  const setMsg = (t, cls)=>{ msg.className="msg "+(cls||""); msg.textContent=t||""; };
+  closeBtn.onclick = () => { try { window.Telegram?.WebApp?.close(); } catch(e) {} window.close(); };
 
-  try { tg?.ready(); tg?.expand(); } catch(e){}
+  let sessionId = null;
+  let requiredSeconds = 0;
+  let started = false;
+  let finished = false;
+  let t = null;
 
-  btnClose.onclick = () => { try{tg?.close();}catch(e){} setTimeout(()=>window.close(),150); };
+  function setErr(msg){ errEl.textContent = msg || ''; }
+  function setLeft(v){ leftEl.textContent = String(v); barFill.style.width = requiredSeconds ? ((requiredSeconds - v)/requiredSeconds*100).toFixed(1)+'%' : '0%'; }
 
-  const uname = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || "—";
-  userLine.textContent = "Kullanıcı: " + uname;
-
-  if (!tg?.initData) {
-    setPill("Telegram dışında");
-    setMsg("Bu sayfa Telegram içinde açılmalıdır.", "danger");
-    return;
+  async function api(path, body){
+    const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body||{}) });
+    const j = await r.json().catch(()=> ({}));
+    if(!r.ok) throw new Error(j.reason || 'api_error');
+    return j;
   }
 
-  setPill("Reklam aranıyor…");
+  async function loadAd(){
+    setErr('');
+    const data = await api('/api/ad/next', { initData });
 
-  let next;
-  try{
-    const r = await fetch("/api/ad/next", { headers: { "x-telegram-init-data": tg.initData }});
-    next = await r.json();
-  }catch(e){
-    setPill("Hata");
-    setMsg("Sunucuya bağlanılamadı.", "danger");
-    return;
-  }
+    sessionId = data.session_id;
+    requiredSeconds = data.requiredSeconds || 10;
 
-  if(!next?.ok){
-    setPill("Hata");
-    setMsg("Reklam alınamadı.", "danger");
-    return;
-  }
-  if(next.no_ad){
-    setPill("Reklam yok");
-    setMsg("Şu an reklam yok. Daha sonra tekrar dene.", "danger");
-    setTimeout(()=>{ try{tg.close();}catch(e){} }, 1200);
-    return;
-  }
+    // ödül formatı
+    const tl = Number(data.reward_tl || 0).toFixed(2);
+    const elmas = Number(data.reward_elmas || 0).toFixed(2);
+    rewardEl.textContent = `${tl} TL + ${elmas} ELMAS`;
 
-  const sessionId = next.session_id;
-  const ad = next.ad || {};
-  const total = Number(ad.seconds || 15);
+    setLeft(requiredSeconds);
 
-  if(!ad.url){
-    setPill("Hata");
-    setMsg("Reklam URL boş.", "danger");
-    return;
-  }
-
-  vid.src = ad.url;
-  vid.autoplay = true;
-  vid.loop = false;
-  vid.muted = true;
-  vid.playsInline = true;
-
-  async function tryPlay(){
-    try{ await vid.play(); overlay.classList.add("hidden"); return true; }
-    catch(e){ overlay.classList.remove("hidden"); return false; }
-  }
-  btnPlay.onclick = async ()=>{ vid.muted=false; await tryPlay(); };
-  await tryPlay();
-
-  setPill("Reklam oynatılıyor…");
-  setMsg("Lütfen bekleyin, bitince ödül otomatik verilecek.", "");
-
-  let remaining = total;
-  secEl.textContent = remaining;
-  barFill.style.width = "0%";
-
-  const timer = setInterval(async ()=>{
-    remaining -= 1;
-    if(remaining<0) remaining=0;
-    secEl.textContent = remaining;
-    barFill.style.width = Math.round(((total-remaining)/total)*100) + "%";
-
-    if(remaining<=0){
-      clearInterval(timer);
-      setPill("Tamamlandı");
-      setMsg("Ödül veriliyor…", "");
-
-      try{
-        const r = await fetch("/api/ad/complete", {
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json",
-            "x-telegram-init-data": tg.initData
-          },
-          body: JSON.stringify({ session_id: sessionId })
-        });
-        const out = await r.json();
-        if(out?.ok) setMsg("Ödül verildi ✅", "ok");
-        else setMsg("Ödül verilemedi ❌ ("+(out?.error||"hata")+")", "danger");
-      }catch(e){
-        setMsg("Ödül verilemedi ❌", "danger");
-      }
-
-      setTimeout(()=>{ try{tg.close();}catch(e){} setTimeout(()=>window.close(),150); }, 900);
+    if(!data.ad_url){
+      setErr('Reklam alınamadı.');
+      return;
     }
-  }, 1000);
-})();
+
+    vid.src = data.ad_url;
+    vid.load();
+  }
+
+  function startCountdown(){
+    if(started || finished) return;
+    started = true;
+    let left = requiredSeconds;
+    setLeft(left);
+
+    t = setInterval(async () => {
+      left -= 1;
+      setLeft(left);
+
+      if(left <= 0){
+        clearInterval(t);
+        finished = true;
+        try{
+          const done = await api('/api/ad/complete', { initData, session_id: sessionId });
+          if(done.ok){
+            setErr('✅ Ödül verildi');
+            setTimeout(()=>{ try{ window.Telegram?.WebApp?.close(); }catch(e){} }, 800);
+          }else{
+            setErr('❌ Ödül verilemedi: ' + (done.reason||''));
+          }
+        }catch(e){
+          setErr('❌ Ödül verilemedi: ' + e.message);
+        }
+      }
+    }, 1000);
+  }
+
+  // ✅ Sayaç sadece video gerçekten başlayınca çalışır
+  vid.addEventListener('play', () => startCountdown());
+
+  // video açılamadıysa complete çağrılmasın
+  vid.addEventListener('error', () => setErr('Reklam oynatılamadı (URL/format/CORS).'));
+  vid.addEventListener('stalled', () => setErr('Reklam yüklenemedi.'));
+
+  loadAd().catch(e => setErr('Reklam alınamadı: ' + e.message));
 </script>
 </body>
 </html>
