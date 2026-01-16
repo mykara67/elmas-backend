@@ -272,28 +272,14 @@ bot.hears("🔥 VIP", async (ctx) => {
 
 bot.hears("🎥 Reklam İzle", async (ctx) => {
   try {
-    const u = await ensureUser(ctx);
-    const telegram_id = String(u.telegram_id);
+    await ensureUser(ctx);
 
-    const ad = await pickAd();
-    if (!ad) {
-      await ctx.reply("❌ Reklam getirilemedi. Supabase ads tablosunu kontrol et.", mainMenu);
-      return;
-    }
-
-    const session = await createAdSession({ telegram_id, ad });
-
-    const duration = Number(session.duration_sec || ad.duration_sec || 15);
-    const rewardTl = fmt2(session.reward_tl || ad.reward_tl || 0);
-    const rewardElmas = fmt2(session.reward_elmas || ad.reward_elmas || 0);
-
-    // Reklam, Telegram WebApp icinde acilir (harici tarayici degil).
-    // watch.html sayfasi sid parametresiyle session'i alir, sayaci gosterir,
-    // reklam tamamlaninca otomatik odul verir ve Telegram.WebApp.close() ile kapanir.
+    // Yeni akış: Oturumu web-server oluşturur.
+    // Bot sadece Telegram WebApp'i açar; watch.html sayfası /api/ad/next -> /api/ad/complete ile otomatik ödül verir.
     const watchPath = WEBAPP_WATCH_PATH.startsWith("/") ? WEBAPP_WATCH_PATH : `/${WEBAPP_WATCH_PATH}`;
-    const url = `${WEB_BASE_URL}${watchPath}?sid=${encodeURIComponent(session.session_id)}`;
+    const url = `${WEB_BASE_URL}${watchPath}`;
     await ctx.reply(
-      `🎬 ${ad.title || "Reklam"}\n\n⏱ Süre: ${duration} sn\n🎁 Ödül: ${rewardTl} TL + ${rewardElmas} ELMAS\n\n✅ Reklam Telegram icinde acilacak. Reklam bitince odul otomatik yatacak (buton yok).`,
+      `🎬 Reklam izle\n\n⏱ Sayaç bitince ödül otomatik verilir (buton yok).\n🎁 Ödül: 0.25 TL + 0.25 ELMAS`,
       webAppButton(url)
     );
 
