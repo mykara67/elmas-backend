@@ -5,171 +5,39 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f19" />
   <title>Reklam İzle • ELMAS</title>
-
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
   <style>
-    :root{
-      --bg:#0b0f19;
-      --card:#121a2a;
-      --text:#e9eefc;
-      --muted:#9fb0d0;
-      --accent:#6d7cff;
-      --danger:#ff4d6d;
-      --ok:#2dd4bf;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-      --radius: 18px;
-    }
+    :root{--bg:#0b0f19;--card:#121a2a;--text:#e9eefc;--muted:#9fb0d0;--accent:#6d7cff;--danger:#ff4d6d;--ok:#2dd4bf;--shadow:0 10px 30px rgba(0,0,0,.35);--radius:18px}
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background: radial-gradient(1200px 600px at 20% 0%, rgba(109,124,255,.25), transparent 55%),
-                  radial-gradient(900px 500px at 80% 10%, rgba(45,212,191,.18), transparent 60%),
-                  var(--bg);
-      color:var(--text);
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:16px;
-    }
-    .card{
-      width:min(560px, 100%);
-      background: rgba(18,26,42,.92);
-      border: 1px solid rgba(255,255,255,.06);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:16px 18px;
-      border-bottom:1px solid rgba(255,255,255,.06);
-    }
-    .brand{
-      display:flex; gap:10px; align-items:center;
-    }
-    .logo{
-      width:38px;height:38px;border-radius:12px;
-      display:grid;place-items:center;
-      background: linear-gradient(135deg, rgba(109,124,255,.35), rgba(45,212,191,.25));
-      border:1px solid rgba(255,255,255,.08);
-      font-weight:800;
-    }
-    .ttl{font-weight:800; letter-spacing:.2px}
-    .sub{color:var(--muted); font-size:12px; margin-top:2px}
-    .pill{
-      font-size:12px;
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      color:var(--muted);
-      background: rgba(255,255,255,.03);
-      white-space:nowrap;
-    }
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 600px at 20% 0%, rgba(109,124,255,.25), transparent 55%),radial-gradient(900px 500px at 80% 10%, rgba(45,212,191,.18), transparent 60%),var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+    .card{width:min(560px,100%);background:rgba(18,26,42,.92);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .brand{display:flex;gap:10px;align-items:center}
+    .logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg, rgba(109,124,255,.35), rgba(45,212,191,.25));border:1px solid rgba(255,255,255,.08);font-weight:800}
+    .ttl{font-weight:800;letter-spacing:.2px}
+    .sub{color:var(--muted);font-size:12px;margin-top:2px}
+    .pill{font-size:12px;padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.08);color:var(--muted);background:rgba(255,255,255,.03);white-space:nowrap}
     .body{padding:18px}
-    .box{
-      background: rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.06);
-      border-radius: 16px;
-      padding:14px;
-    }
-    .row{
-      display:flex; gap:12px; align-items:center; justify-content:space-between;
-      flex-wrap:wrap;
-    }
-    .timer{
-      display:flex; gap:10px; align-items:center;
-      padding:10px 12px;
-      border-radius: 14px;
-      border:1px solid rgba(255,255,255,.06);
-      background: rgba(0,0,0,.18);
-    }
-    .tNum{
-      font-size:18px;
-      font-weight:900;
-      color:var(--accent);
-      min-width:42px;
-      text-align:center;
-    }
-    .tLbl{font-size:12px; color:var(--muted)}
-    .bar{
-      height:10px;
-      width:100%;
-      background: rgba(255,255,255,.06);
-      border-radius:999px;
-      overflow:hidden;
-      margin-top:12px;
-    }
-    .bar > div{
-      height:100%;
-      width:0%;
-      background: linear-gradient(90deg, var(--accent), rgba(45,212,191,.9));
-      transition: width .25s linear;
-    }
-    .adFrame{
-      margin-top:14px;
-      border-radius:16px;
-      overflow:hidden;
-      border:1px solid rgba(255,255,255,.06);
-      background: rgba(0,0,0,.2);
-      height: 280px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      position:relative;
-    }
-    .adHint{
-      color:var(--muted);
-      font-size:13px;
-      text-align:center;
-      padding:18px;
-      line-height:1.35;
-    }
-    .badge{
-      position:absolute;
-      top:12px; left:12px;
-      font-size:12px;
-      padding:6px 10px;
-      border-radius:999px;
-      background: rgba(0,0,0,.35);
-      border:1px solid rgba(255,255,255,.08);
-      color:var(--muted);
-    }
-    .msg{
-      margin-top:12px;
-      color:var(--muted);
-      font-size:13px;
-      min-height:18px;
-    }
-    .danger{color:var(--danger)}
-    .ok{color:var(--ok)}
-    .footer{
-      padding:14px 18px;
-      border-top:1px solid rgba(255,255,255,.06);
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      color:var(--muted);
-      font-size:12px;
-    }
-    button{
-      appearance:none;
-      border:none;
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      padding:10px 12px;
-      border-radius: 14px;
-      cursor:pointer;
-      border:1px solid rgba(255,255,255,.08);
-    }
-    button:active{transform: translateY(1px)}
+    .box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:14px}
+    .row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .timer{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.18)}
+    .tNum{font-size:18px;font-weight:900;color:var(--accent);min-width:42px;text-align:center}
+    .tLbl{font-size:12px;color:var(--muted)}
+    .bar{height:10px;width:100%;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin-top:12px}
+    .bar>div{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),rgba(45,212,191,.9));transition:width .25s linear}
+    .adFrame{margin-top:14px;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.2);height:320px;display:flex;align-items:center;justify-content:center;position:relative}
+    .badge{position:absolute;top:12px;left:12px;font-size:12px;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);color:var(--muted);z-index:2}
+    video{width:100%;height:100%;object-fit:cover;background:#000}
+    .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:3;padding:16px;text-align:center;color:var(--text)}
+    .overlay.hidden{display:none}
+    .overlay button{margin-top:12px;padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);color:var(--text);cursor:pointer}
+    .msg{margin-top:12px;color:var(--muted);font-size:13px;min-height:18px}
+    .danger{color:var(--danger)} .ok{color:var(--ok)}
+    .footer{padding:14px 18px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}
+    .btnClose{appearance:none;border:none;background:rgba(255,255,255,.06);color:var(--text);padding:10px 12px;border-radius:14px;cursor:pointer;border:1px solid rgba(255,255,255,.08)}
+    .btnClose:active{transform:translateY(1px)}
   </style>
 </head>
-
 <body>
   <div class="card">
     <div class="top">
@@ -182,7 +50,6 @@
       </div>
       <div class="pill" id="pill">Hazırlanıyor…</div>
     </div>
-
     <div class="body">
       <div class="box">
         <div class="row">
@@ -193,31 +60,34 @@
               <div class="tLbl" id="userLine">Kullanıcı: —</div>
             </div>
           </div>
-          <button id="btnClose" type="button">Kapat</button>
+          <button class="btnClose" id="btnClose" type="button">Kapat</button>
         </div>
 
         <div class="bar"><div id="barFill"></div></div>
 
-        <div class="adFrame" id="adFrame">
+        <div class="adFrame">
           <div class="badge">REKLAM</div>
-          <div class="adHint" id="adHint">
-            Reklam yükleniyor…<br/>
-            <small>(Bu demo ekranda gerçek reklam entegrasyonu bir sonraki adımda bağlanacak)</small>
+          <video id="vid" playsinline muted></video>
+          <div class="overlay" id="overlay">
+            <div>
+              <div style="font-weight:800;font-size:16px">Videoyu başlat</div>
+              <div style="opacity:.9;margin-top:6px;font-size:13px">Bazı cihazlarda otomatik oynatma engelli. Başlat'a bas.</div>
+              <button id="btnPlay" type="button">▶ Başlat</button>
+            </div>
           </div>
         </div>
 
         <div class="msg" id="msg"></div>
       </div>
     </div>
-
     <div class="footer">
       <div>ELMAS • Telegram Mini App</div>
-      <div id="foot">v1</div>
+      <div>Ödül: 0.25 TL + 0.25 ELMAS</div>
     </div>
   </div>
 
 <script>
-(function(){
+(async function(){
   const tg = window.Telegram?.WebApp;
   const pill = document.getElementById("pill");
   const secEl = document.getElementById("sec");
@@ -225,78 +95,110 @@
   const msg = document.getElementById("msg");
   const userLine = document.getElementById("userLine");
   const btnClose = document.getElementById("btnClose");
+  const vid = document.getElementById("vid");
+  const overlay = document.getElementById("overlay");
+  const btnPlay = document.getElementById("btnPlay");
 
-  // Telegram içinde değilse de çalışsın
+  const setPill = (t)=>pill.textContent=t;
+  const setMsg = (t, cls)=>{ msg.className="msg "+(cls||""); msg.textContent=t||""; };
+
   try { tg?.ready(); tg?.expand(); } catch(e){}
 
-  btnClose.onclick = () => {
-    try { tg?.close(); } catch(e){}
-    // fallback
-    setTimeout(()=>{ window.close(); }, 150);
-  };
+  btnClose.onclick = () => { try{tg?.close();}catch(e){} setTimeout(()=>window.close(),150); };
 
-  const params = new URLSearchParams(location.search);
-  const sid = params.get("sid") || "";
-  const demoSeconds = 15;
-
-  function setPill(text){ pill.textContent = text; }
-  function setMsg(text, cls){
-    msg.className = "msg " + (cls || "");
-    msg.textContent = text || "";
-  }
-
-  // init user
   const uname = tg?.initDataUnsafe?.user?.username || tg?.initDataUnsafe?.user?.first_name || "—";
   userLine.textContent = "Kullanıcı: " + uname;
 
-  // Eğer initData yoksa (Telegram dışında açıldıysa) uyar
   if (!tg?.initData) {
     setPill("Telegram dışında");
     setMsg("Bu sayfa Telegram içinde açılmalıdır.", "danger");
-    secEl.textContent = "--";
     return;
   }
 
-  // Demo sayaç: gerçek sistemde burada rewarded ad gösterilecek.
-  // Ödül verme: backend endpoint'in varsa buraya bağlayacağız.
-  let remaining = demoSeconds;
-  secEl.textContent = remaining;
+  setPill("Reklam aranıyor…");
+
+  let next;
+  try{
+    const r = await fetch("/api/ad/next", { headers: { "x-telegram-init-data": tg.initData }});
+    next = await r.json();
+  }catch(e){
+    setPill("Hata");
+    setMsg("Sunucuya bağlanılamadı.", "danger");
+    return;
+  }
+
+  if(!next?.ok){
+    setPill("Hata");
+    setMsg("Reklam alınamadı.", "danger");
+    return;
+  }
+  if(next.no_ad){
+    setPill("Reklam yok");
+    setMsg("Şu an reklam yok. Daha sonra tekrar dene.", "danger");
+    setTimeout(()=>{ try{tg.close();}catch(e){} }, 1200);
+    return;
+  }
+
+  const sessionId = next.session_id;
+  const ad = next.ad || {};
+  const total = Number(ad.seconds || 15);
+
+  if(!ad.url){
+    setPill("Hata");
+    setMsg("Reklam URL boş.", "danger");
+    return;
+  }
+
+  vid.src = ad.url;
+  vid.autoplay = true;
+  vid.loop = false;
+  vid.muted = true;
+  vid.playsInline = true;
+
+  async function tryPlay(){
+    try{ await vid.play(); overlay.classList.add("hidden"); return true; }
+    catch(e){ overlay.classList.remove("hidden"); return false; }
+  }
+  btnPlay.onclick = async ()=>{ vid.muted=false; await tryPlay(); };
+  await tryPlay();
 
   setPill("Reklam oynatılıyor…");
-  setMsg("Lütfen bekleyin, sayaç bitince ödül otomatik verilecek.", "");
+  setMsg("Lütfen bekleyin, bitince ödül otomatik verilecek.", "");
 
-  const total = demoSeconds;
+  let remaining = total;
+  secEl.textContent = remaining;
+  barFill.style.width = "0%";
 
-  const timer = setInterval(async () => {
+  const timer = setInterval(async ()=>{
     remaining -= 1;
-    if (remaining < 0) remaining = 0;
-
+    if(remaining<0) remaining=0;
     secEl.textContent = remaining;
-    const pct = Math.round(((total - remaining) / total) * 100);
-    barFill.style.width = pct + "%";
+    barFill.style.width = Math.round(((total-remaining)/total)*100) + "%";
 
-    if (remaining <= 0) {
+    if(remaining<=0){
       clearInterval(timer);
       setPill("Tamamlandı");
       setMsg("Ödül veriliyor…", "");
 
-      try {
-        // Backend endpoint örneği (senin projeye göre düzenlenecek):
-        // await fetch("/api/reward/complete", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ sid }) });
-
-        setMsg("Ödül verildi ✅", "ok");
-      } catch (e) {
-        setMsg("Ödül verilemedi (backend yok) ❌", "danger");
+      try{
+        const r = await fetch("/api/ad/complete", {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            "x-telegram-init-data": tg.initData
+          },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        const out = await r.json();
+        if(out?.ok) setMsg("Ödül verildi ✅", "ok");
+        else setMsg("Ödül verilemedi ❌ ("+(out?.error||"hata")+")", "danger");
+      }catch(e){
+        setMsg("Ödül verilemedi ❌", "danger");
       }
 
-      // otomatik kapan
-      setTimeout(() => {
-        try { tg.close(); } catch(e){}
-        setTimeout(()=>{ window.close(); }, 150);
-      }, 900);
+      setTimeout(()=>{ try{tg.close();}catch(e){} setTimeout(()=>window.close(),150); }, 900);
     }
   }, 1000);
-
 })();
 </script>
 </body>
