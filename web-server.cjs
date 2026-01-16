@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const express = require('express');
 const crypto = require('crypto');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const PORT = process.env.PORT || 10000;
@@ -26,6 +27,15 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
+
+// --- Serve static Telegram Mini App UI ---
+// This fixes: "Cannot GET /webapp/" and "Cannot GET /webapp/watch.html"
+// Make sure your repo has: ./webapp/index.html (and optionally watch.html, app.js, style.css, etc.)
+app.use('/webapp', express.static(path.join(__dirname, 'webapp')));
+
+app.get(['/webapp', '/webapp/'], (_req, res) => {
+  res.sendFile(path.join(__dirname, 'webapp', 'index.html'));
+});
 
 app.get('/', (_req, res) => {
   res.status(200).send('OK');
