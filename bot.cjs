@@ -99,7 +99,7 @@ async function addBalance(tgId, amount) {
 
   if (e1) throw e1;
 
-  const newBal = Number(u.balance_tl_tl || 0) + Number(amount || 0);
+  const newBal = Number(u.balance_tl || 0) + Number(amount || 0);
 
   const { error: e2 } = await supabase
     .from('users')
@@ -204,7 +204,7 @@ async function pickActiveAd() {
     try {
       const tgId = String(ctx.from.id);
       const u = await upsertUser(tgId);
-      await ctx.reply(`💰 Bakiye: ${Number(u.balance_tl_tl || 0).toFixed(2)}`);
+      await ctx.reply(`💰 Bakiye: ${Number(u.balance_tl || 0).toFixed(2)} TL`);
     } catch (err) {
       console.error(err);
       await ctx.reply('❌ Bakiye okunamadı.');
@@ -257,13 +257,15 @@ async function pickActiveAd() {
       const msg =
 `🎥 *Reklam: ${ad.title || ('#' + ad.id)}*
 ⏱ Süre: *${seconds} sn*
-🏁 Ödül: *${reward.toFixed(2)} TL + ${reward.toFixed(2)} ELMAS*
+🏁 Ödül: *${reward.toFixed(2)} TL*
 
-👉 Videoyu aç ve sayaç bitene kadar sayfayı kapatma.
-✅ Sayaç bitince ödül *otomatik* hesabına yatar.`;
+1) *Videoyu Aç* butonuna bas
+2) Sayfa açık kalsın, sayaç bitsin
+3) Telegram'a dönüp *Ödülü Al* butonuna bas`;
 
       const kb = Markup.inlineKeyboard([
         [Markup.button.url('🔗 Videoyu Aç', url)],
+        [Markup.button.callback('✅ Ödülü Al', `claim_${session.id}`)],
         [Markup.button.callback('⬅️ Menü', 'back_menu')],
       ]);
 
@@ -275,50 +277,54 @@ async function pickActiveAd() {
     }
   });
 
-      // Sayaç mesajını ayrı bir mesajda yönetelim (edit hatalarını azaltır)
-      const baseText =
-        `⏳ Reklam izleme sayacı başladı.\n` +
-        `Süre dolunca otomatik ödeme yapılır.\n\n` +
-        `🎥 Reklam ID: ${adId}\n` +
-        `💸 Ödül: ${reward}`;
+  // 2) Kullanıcı sayaç bitince "✅ Ödülü Al" butonuna basar (web sayfası completed_at yazar)
+  bot.action(/^claim_(.+)$/i, async (ctx) => {
+    const sessionId = String(ctx.match[1] || '').trim();
+    const tgId = String(ctx.from.id);
 
-      const countdownMsg = await ctx.reply(`${baseText}\n\n⏱ Kalan: *${seconds} sn*`, {
-        parse_mode: 'Markdown',
-      });
+    try {
+      await ctx.answerCbQuery('Kontrol ediliyor...');
 
-      for (let t = seconds - 1; t >= 0; t--) {
-        await sleep(1000);
-        try {
-          await ctx.telegram.editMessageText(
-            ctx.chat.id,
-            countdownMsg.message_id,
-            undefined,
-            `${baseText}\n\n⏱ Kalan: *${t} sn*`,
-            { parse_mode: 'Markdown' }
-          );
-        } catch {
-          // edit olmazsa sorun değil
-        }
+      const { data: sess, error: sErr } = await supabase
+        .from('ad_watch_sessions')
+        .select('id, tg_id, ad_id, required_seconds, completed_at')
+        .eq('id', sessionId)
+        .single();
+
+      if (sErr || !sess) {
+        return ctx.reply('❌ Oturum bulunamadı. Tekrar reklam başlat.', mainMenu());
+      }
+      if (String(sess.tg_id) !== tgId) {
+        return ctx.reply('❌ Bu oturum sana ait değil.', mainMenu());
+      }
+      if (!sess.completed_at) {
+        return ctx.reply('⏳ Sayaç bitmemiş görünüyor. Videoyu açık tutup bitince tekrar dene.', mainMenu());
       }
 
+      const { data: ad, error: aErr } = await supabase
+        .from('ads')
+        .select('id, reward')
+        .eq('id', sess.ad_id)
+        .single();
+
+      if (aErr || !ad) {
+        return ctx.reply('❌ Reklam kaydı bulunamadı. Admin ads tablosunu kontrol et.', mainMenu());
+      }
+
+      const reward = Math.max(0, Number(ad.reward || 0));
       const newBal = await addBalance(tgId, reward);
-      console.log(`✅ reward paid: tg=${tgId} ad=${adId} reward=${reward} newBal=${newBal}`);
 
-      await setPending(tgId, null, null);
+      // Tekrar ödeme olmasın diye oturumu sil
+      await supabase.from('ad_watch_sessions').delete().eq('id', sessionId);
 
-      await ctx.reply(
-        `✅ Süre doldu! *${reward}* ödeme yapıldı.\n💰 Yeni bakiye: *${newBal.toFixed(2)}*`,
-        { parse_mode: 'Markdown', ...mainMenu() }
-      );
+      return ctx.reply(`✅ Ödül verildi: *${reward.toFixed(2)} TL*\n💰 Yeni bakiye: *${newBal.toFixed(2)} TL*`, {
+        parse_mode: 'Markdown',
+        ...mainMenu(),
+      });
     } catch (err) {
       console.error(err);
       try { await ctx.answerCbQuery('Hata'); } catch {}
-
-      try {
-        await setPending(String(ctx.from.id), null, null);
-      } catch {}
-
-      await ctx.reply('❌ Sayaç/ödeme sırasında hata oluştu. Menüden tekrar dene.', mainMenu());
+      return ctx.reply('❌ Ödül kontrolünde hata oldu. Tekrar dene.', mainMenu());
     }
   });
 
